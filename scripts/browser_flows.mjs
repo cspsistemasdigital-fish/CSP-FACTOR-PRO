@@ -97,6 +97,20 @@ async function apiLogin() {
   return response.json()
 }
 
+async function waitForServer(timeoutMs = 20000) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetch(`${BASE}/api/health`)
+      if (response.ok) return
+    } catch {
+      /* servidor ainda reiniciando */
+    }
+    await sleep(250)
+  }
+  throw new Error(`Servidor nao respondeu em ${BASE} apos ${timeoutMs}ms.`)
+}
+
 function resetAdminCli() {
   const cli = path.join(ROOT, 'backend', '.venv', 'Scripts', 'flask.exe')
   const result = spawnSync(
@@ -118,6 +132,9 @@ async function ensureAdmin() {
   if (session?.user?.must_change_password) return session
   console.log('Restaurando o estado de primeiro acesso do administrador via CLI do Flask...')
   resetAdminCli()
+  // O Flask em modo debug recarrega o processo ao trocar o banco via CLI.
+  // Aguarda o servidor estabilizar antes de autenticar novamente.
+  await waitForServer()
   return await apiLogin()
 }
 
@@ -408,7 +425,7 @@ async function main() {
 
     /* ------------------------- 6. exclusao do cliente bloqueada por documentos */
     await goto(cdp, `/clientes/${clientId}`, { ready: '!!document.querySelector(".detail-main")' })
-    await evaluate(cdp, '__click("button.btn-outline-danger")')
+    await evaluate(cdp, '__click("[data-testid=client-delete-button]")')
     await waitFor(cdp, '!!document.querySelector(".fp-modal-foot")', 'confirmacao de exclusao')
     await evaluate(cdp, '__click(".fp-modal-foot .btn-danger")')
     await waitFor(cdp, '!!document.querySelector(".fp-toast-danger")', 'toast de bloqueio', 20000)

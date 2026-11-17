@@ -67,7 +67,7 @@ const TABS = [
 ]
 
 const STATUS_COLORS = {
-  EM_ABERTO: '#E0A106',
+  EM_ABERTO: '#A9813C',
   LIQUIDADO: '#16845B',
   DEVOLVIDO: '#C9463D',
   CANCELADO: '#7C8C86',
@@ -202,8 +202,8 @@ export default function Relatorios() {
   const receiptsPage = useLocalPage(receipts)
 
   const chartsTheme = isDark ? 'dark' : 'light'
-  const textColor = isDark ? '#DCE9E3' : '#3B4F48'
-  const mutedLine = isDark ? 'rgba(255,255,255,.10)' : '#E4ECE8'
+  const textColor = isDark ? '#DCE9E3' : '#2E3B35'
+  const mutedLine = isDark ? 'rgba(255,255,255,.10)' : '#E3DDCF'
 
   const monthlyOptions = useMemo(
     () => ({
@@ -215,7 +215,7 @@ export default function Relatorios() {
         stacked: false,
       },
       theme: { mode: chartsTheme },
-      colors: ['#16845B', '#173B57', '#E0A106'],
+      colors: ['#16845B', '#173B57', '#A9813C'],
       plotOptions: { bar: { columnWidth: '55%', borderRadius: 5, borderRadiusApplication: 'end' } },
       dataLabels: { enabled: false },
       stroke: { show: true, width: 0 },
@@ -266,7 +266,7 @@ export default function Relatorios() {
         markers: { size: 6 },
       },
       dataLabels: { enabled: false },
-      stroke: { colors: [isDark ? '#16241F' : '#FFFFFF'], width: 3 },
+      stroke: { colors: [isDark ? '#16241F' : '#FFFDF8'], width: 3 },
       tooltip: { y: { formatter: (value) => `${formatNumber(value)} título(s)` } },
       plotOptions: {
         pie: {
@@ -465,7 +465,7 @@ export default function Relatorios() {
         icon="bi-graph-up-arrow"
         badge={
           <span className="fp-badge fp-badge-success">
-            <i className="bi bi-check-circle-fill" /> Etapa 3
+            <i className="bi bi-check-circle-fill" /> Disponível
           </span>
         }
       >

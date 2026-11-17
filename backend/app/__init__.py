@@ -98,8 +98,24 @@ def _register_brand_routes(app: Flask) -> None:
         if icon_url:
             path = get_settings()["logo_path"]
             icon_type = mimetypes.guess_type(path)[0] or "image/png"
+        # Static icons always stay in the manifest so installability (192px,
+        # 512px and maskable) is guaranteed even when a custom logo is uploaded.
+        static_icons = [
+            {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+            {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+            {"src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        ]
+        if icon_url:
+            # The admin-uploaded logo takes precedence for branding.
+            icons = [
+                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "any"},
+                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "maskable"},
+                *static_icons,
+            ]
+            shortcut_icon, shortcut_sizes = icon_url, "any"
         else:
-            icon_url = "/icons/icon-192.png"
+            icons = static_icons
+            shortcut_icon, shortcut_sizes = "/icons/icon-192.png", "192x192"
         payload = {
             "id": "/",
             "name": f"{brand['app_name']} — Gestão Financeira Inteligente",
@@ -113,18 +129,21 @@ def _register_brand_routes(app: Flask) -> None:
             "orientation": "any",
             "background_color": brand["background_color"],
             "theme_color": brand["theme_color"],
-            "icons": [
-                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "any"},
-                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "maskable"},
-            ],
+            "icons": icons,
             "shortcuts": [
-                {"name": "Clientes", "short_name": "Clientes", "url": "/clientes", "icons": [{"src": icon_url, "sizes": "any"}]},
-                {"name": "Cheques", "short_name": "Cheques", "url": "/cheques", "icons": [{"src": icon_url, "sizes": "any"}]},
-                {"name": "Boletos", "short_name": "Boletos", "url": "/boletos", "icons": [{"src": icon_url, "sizes": "any"}]},
-                {"name": "Relatórios", "short_name": "Relatórios", "url": "/relatorios", "icons": [{"src": icon_url, "sizes": "any"}]},
+                {"name": label, "short_name": label, "url": url, "icons": [{"src": shortcut_icon, "sizes": shortcut_sizes}]}
+                for label, url in (
+                    ("Clientes", "/clientes"),
+                    ("Cheques", "/cheques"),
+                    ("Boletos", "/boletos"),
+                    ("Relatórios", "/relatorios"),
+                )
             ],
         }
-        response = Response(json.dumps(payload, ensure_ascii=False), mimetype="application/manifest+json")
+        response = Response(
+            json.dumps(payload, ensure_ascii=False),
+            content_type="application/manifest+json; charset=utf-8",
+        )
         response.headers["Cache-Control"] = "no-cache"
         return response
 

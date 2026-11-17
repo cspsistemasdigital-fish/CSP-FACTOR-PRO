@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { clientsApi } from '../../api'
+import { alertsApi, clientsApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
@@ -10,6 +10,7 @@ import SummaryTile from '../../components/ui/SummaryTile'
 import StatusBadge from '../../components/ui/StatusBadge'
 import DocumentsTable from '../../components/documents/DocumentsTable'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
+import ClientBlockButton from '../../components/clients/ClientBlockButton'
 import EmptyState from '../../components/ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import {
@@ -58,17 +59,26 @@ export default function ClientDetail() {
   const [error, setError] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [overdue, setOverdue] = useState(null)
+  const [clientBlocked, setClientBlocked] = useState(false)
+  const [clientBlockReason, setClientBlockReason] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
-      const [clientResponse, historyResponse] = await Promise.all([
+      const [clientResponse, historyResponse, alertsResponse] = await Promise.all([
         clientsApi.get(id),
         clientsApi.history(id),
+        alertsApi.list().catch(() => null),
       ])
       setClient(clientResponse.data.item)
       setHistory(historyResponse.data)
+      setClientBlocked(Boolean(clientResponse.data.item.is_blocked))
+      setClientBlockReason(clientResponse.data.item.blocked_reason || '')
+      setOverdue(
+        alertsResponse?.data?.items?.find((item) => item.client_id === Number(id)) || null,
+      )
     } catch (requestError) {
       setError(apiError(requestError).message)
     } finally {
@@ -125,7 +135,12 @@ export default function ClientDetail() {
         title={client.name}
         subtitle={`${client.code} · ${client.person_type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'} · cadastrado em ${formatDate(client.registered_at)}`}
         icon="bi-person-badge"
-        badge={<StatusBadge status={client.status} />}
+        badge={
+          <span className="d-inline-flex gap-1 flex-wrap">
+            <StatusBadge status={client.status} />
+            {clientBlocked && <span className="fp-badge fp-badge-danger">Inadimplente · bloqueado</span>}
+          </span>
+        }
       >
         <Link to="/clientes" className="btn btn-light">
           <i className="bi bi-arrow-left" /> Voltar
@@ -135,8 +150,26 @@ export default function ClientDetail() {
             <i className="bi bi-pencil" /> Editar
           </Link>
         )}
+        {canWrite && (
+          <ClientBlockButton
+            clientId={client.id}
+            blocked={clientBlocked}
+            reason={clientBlockReason}
+            overdue={overdue}
+            onChanged={(item) => {
+              setClient((current) => ({ ...current, ...item }))
+              setClientBlocked(Boolean(item.is_blocked))
+              setClientBlockReason(item.blocked_reason || '')
+            }}
+          />
+        )}
         {isAdmin && (
-          <button type="button" className="btn btn-outline-danger" onClick={() => setConfirmOpen(true)}>
+          <button
+            type="button"
+            data-testid="client-delete-button"
+            className="btn btn-outline-danger"
+            onClick={() => setConfirmOpen(true)}
+          >
             <i className="bi bi-trash3" /> Excluir
           </button>
         )}
@@ -149,6 +182,20 @@ export default function ClientDetail() {
             <strong>Limite operacional excedido.</strong> A exposição em aberto de{' '}
             {formatBRL(summary.open_amount)} supera o limite informado de {formatBRL(summary.operational_limit)}.
             O sistema não bloqueia lançamentos automaticamente: a decisão é sua.
+          </div>
+        </div>
+      )}
+
+      {overdue?.overdue_documents > 0 && (
+        <div className={`alert ${clientBlocked ? 'alert-danger' : 'alert-warning'} fp-alert`} role="status">
+          <i className="bi bi-exclamation-triangle-fill" />
+          <div>
+            <strong>Inadimplência detectada.</strong>{' '}
+            {overdue.overdue_documents} título(s) vencido(s), totalizando{' '}
+            {formatBRL(overdue.overdue_amount)}.{' '}
+            {clientBlocked
+              ? `Bloqueio ativo: ${clientBlockReason || 'motivo não informado'}.`
+              : 'Bloqueie novos lançamentos com o botão “Bloquear por inadimplência”.'}
           </div>
         </div>
       )}

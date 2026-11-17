@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { authApi, settingsApi } from '../api'
 import { apiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useBrand } from '../context/BrandContext'
 import { useTheme } from '../context/ThemeContext'
 import { useToast } from '../context/ToastContext'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
@@ -13,6 +14,7 @@ import DocumentField from '../components/form/DocumentField'
 import PhoneField from '../components/form/PhoneField'
 import { ErrorBlock, LoadingBlock } from '../components/ui/Feedback'
 import { formatDateTime } from '../utils/format'
+import '../styles/brand.css'
 
 const STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -22,6 +24,7 @@ const STATES = [
 const EMPTY_PASSWORD = { current: '', password: '', confirm: '' }
 
 const EMPTY_COMPANY = {
+  app_name: '',
   company_name: '',
   company_document: '',
   company_phone: '',
@@ -64,6 +67,7 @@ function validatePassword(form) {
 
 export default function Settings() {
   const { user, isAdmin, setUser } = useAuth()
+  const { appName, logoUrl, refreshBrand } = useBrand()
   const { theme, setTheme } = useTheme()
   const toast = useToast()
   const { canInstall, install, installed } = useInstallPrompt()
@@ -121,6 +125,8 @@ export default function Settings() {
   const [companyErrors, setCompanyErrors] = useState({})
   const [companyMessage, setCompanyMessage] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [removingLogo, setRemovingLogo] = useState(false)
 
   const loadCompany = useCallback(async () => {
     if (!isAdmin) return
@@ -151,6 +157,9 @@ export default function Settings() {
   const submitCompany = async (event) => {
     event.preventDefault()
     const errors = {}
+    if (!company.app_name.trim() || company.app_name.trim().length < 2) {
+      errors.app_name = 'Informe o nome do aplicativo.'
+    }
     if (!company.company_name.trim() || company.company_name.trim().length < 2) {
       errors.company_name = 'Informe o nome da empresa.'
     }
@@ -164,11 +173,13 @@ export default function Settings() {
     try {
       const { data } = await settingsApi.update({
         ...company,
+        app_name: company.app_name.trim(),
         company_name: company.company_name.trim(),
         company_email: company.company_email.trim(),
         company_state: company.company_state.toUpperCase(),
       })
       setCompany({ ...EMPTY_COMPANY, ...data.settings })
+      await refreshBrand()
       toast.success('Configurações salvas', data.message)
     } catch (error) {
       const parsed = apiError(error)
@@ -179,10 +190,48 @@ export default function Settings() {
     }
   }
 
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    const allowed = ['image/png', 'image/jpeg', 'image/webp']
+    if (!allowed.includes(file.type)) {
+      toast.error('Formato não aceito', 'Use uma imagem PNG, JPEG ou WebP.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Arquivo muito grande', 'O logotipo deve ter no máximo 10 MB.')
+      return
+    }
+    setUploadingLogo(true)
+    try {
+      const { data } = await settingsApi.uploadLogo(file)
+      await refreshBrand()
+      toast.success('Logotipo atualizado', data.message)
+    } catch (error) {
+      toast.error('Não foi possível enviar o logotipo', apiError(error).message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleLogoRemove = async () => {
+    setRemovingLogo(true)
+    try {
+      const { data } = await settingsApi.removeLogo()
+      await refreshBrand()
+      toast.success('Logotipo removido', data.message)
+    } catch (error) {
+      toast.error('Não foi possível remover o logotipo', apiError(error).message)
+    } finally {
+      setRemovingLogo(false)
+    }
+  }
+
   const handleInstall = async () => {
     const choice = await install()
     if (choice?.outcome === 'accepted') {
-      toast.success('Aplicativo instalado', 'O FACTOR PRO foi adicionado ao seu dispositivo.')
+      toast.success('Aplicativo instalado', `O ${appName} foi adicionado ao seu dispositivo.`)
     }
   }
 
@@ -201,7 +250,7 @@ export default function Settings() {
     <div className="page">
       <PageHeader
         title="Configurações"
-        subtitle="Perfil, segurança, aparência e dados institucionais do FACTOR PRO."
+        subtitle={`Perfil, segurança, aparência e dados institucionais do ${appName}.`}
         icon="bi-gear-fill"
       />
 
@@ -474,9 +523,11 @@ export default function Settings() {
                   <div className="palette-row">
                     <span><em style={{ background: '#123D32' }} /> Verde escuro</span>
                     <span><em style={{ background: '#16845B' }} /> Verde</span>
-                    <span><em style={{ background: '#DDF4E8' }} /> Verde claro</span>
+                    <span><em style={{ background: '#E4F0E7' }} /> Verde claro</span>
+                    <span><em style={{ background: '#A9813C' }} /> Acento latão</span>
                     <span><em style={{ background: '#173B57' }} /> Azul petróleo</span>
-                    <span><em style={{ background: '#F4F7F6' }} /> Fundo claro</span>
+                    <span><em style={{ background: '#FFFDF8' }} /> Branco quente</span>
+                    <span><em style={{ background: '#F5F1E8' }} /> Fundo claro</span>
                     <span><em style={{ background: '#101B1A' }} /> Fundo escuro</span>
                   </div>
                 </Panel>
@@ -500,6 +551,82 @@ export default function Settings() {
           {activeTab === 'empresa' && isAdmin && (
             <div className="settings-layout">
               <div className="settings-main">
+                <Panel
+                  title="Identidade do aplicativo"
+                  subtitle="Nome e símbolo exibidos no login, no menu, nas abas do navegador e no aplicativo instalado."
+                  icon="bi-badge-ad"
+                >
+                  {companyLoading || companyLoadError ? (
+                    <LoadingBlock label="Carregando identidade…" />
+                  ) : (
+                    <>
+                      <div className="form-grid">
+                        <Field
+                          label="Nome do aplicativo"
+                          name="app_name"
+                          icon="bi-input-cursor-text"
+                          className="span-2"
+                          value={company.app_name}
+                          onChange={updateCompanyEvent('app_name')}
+                          error={companyErrors.app_name}
+                          maxLength={40}
+                          hint={`Exibido em toda a interface e na instalação PWA. Padrão: FACTOR PRO. Nome institucional: ${company.company_name || appName}.`}
+                          required
+                        />
+                      </div>
+                      <div className="brand-logo-row">
+                        <div className="brand-logo-preview">
+                          {logoUrl ? (
+                            <img src={logoUrl} alt={`Logotipo de ${appName}`} />
+                          ) : (
+                            <span className="brand-logo-placeholder">
+                              <i className="bi bi-image" />
+                            </span>
+                          )}
+                        </div>
+                        <div className="brand-logo-actions">
+                          <strong>Logotipo</strong>
+                          <p>
+                            PNG, JPEG ou WebP de até 10 MB. A imagem é exibida no login e substitui o
+                            símbolo padrão no aplicativo instalado.
+                          </p>
+                          <div className="brand-logo-buttons">
+                            <label className={`btn btn-outline-primary ${uploadingLogo ? 'disabled' : ''}`}>
+                              <i className="bi bi-upload" />
+                              {uploadingLogo ? ' Enviando…' : ' Enviar logotipo'}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/webp"
+                                onChange={handleLogoUpload}
+                                disabled={uploadingLogo}
+                                className="visually-hidden"
+                              />
+                            </label>
+                            {logoUrl && (
+                              <button
+                                type="button"
+                                className="btn btn-light"
+                                onClick={handleLogoRemove}
+                                disabled={removingLogo}
+                              >
+                                <i className="bi bi-arrow-counterclockwise" />
+                                {removingLogo ? ' Restaurando…' : ' Restaurar padrão'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="inline-alert info mt-3">
+                        <i className="bi bi-info-circle-fill" />
+                        <span>
+                          Use o botão “Salvar configurações” para aplicar o nome. O logotipo é aplicado
+                          imediatamente após o envio e registrado na auditoria.
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </Panel>
+
                 <Panel
                   title="Dados da empresa"
                   subtitle="Usados em relatórios, exportações e mensagens geradas pelo sistema."
@@ -644,7 +771,7 @@ export default function Settings() {
           {activeTab === 'aplicativo' && (
             <div className="settings-layout">
               <div className="settings-main">
-                <Panel title="Instalar o FACTOR PRO" subtitle="Use como aplicativo no computador ou celular." icon="bi-phone">
+                <Panel title={`Instalar o ${appName}`} subtitle="Use como aplicativo no computador ou celular." icon="bi-phone">
                   <div className={`install-card ${installed ? 'installed' : ''}`}>
                     <span className="install-icon">
                       <i className={`bi ${installed ? 'bi-check-circle-fill' : 'bi-download'}`} />
@@ -653,7 +780,7 @@ export default function Settings() {
                       <strong>{installed ? 'Aplicativo instalado' : 'Instalação disponível pelo navegador'}</strong>
                       <p>
                         {installed
-                          ? 'O FACTOR PRO está sendo executado como aplicativo instalado neste dispositivo.'
+                          ? `O ${appName} está sendo executado como aplicativo instalado neste dispositivo.`
                           : canInstall
                             ? 'Clique no botão para instalar. O aplicativo abre em janela própria e mantém o mesmo login seguro.'
                             : 'Se o botão de instalação não aparecer, use o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela de início”.'}
@@ -670,14 +797,14 @@ export default function Settings() {
                     <h4><i className="bi bi-windows" /> No computador (Chrome ou Edge)</h4>
                     <ol>
                       <li>Abra o menu do navegador (três pontos).</li>
-                      <li>Escolha “Instalar FACTOR PRO” ou “Aplicativos → Instalar este site”.</li>
+                      <li>Escolha “Instalar {appName}” ou “Aplicativos → Instalar este site”.</li>
                       <li>Confirme a instalação e abra pelo atalho criado.</li>
                     </ol>
                     <h4><i className="bi bi-apple" /> No iPhone ou iPad (Safari)</h4>
                     <ol>
                       <li>Toque no botão Compartilhar.</li>
                       <li>Escolha “Adicionar à Tela de Início”.</li>
-                      <li>Confirme o nome FACTOR PRO e toque em Adicionar.</li>
+                      <li>Confirme o nome {appName} e toque em Adicionar.</li>
                     </ol>
                     <h4><i className="bi bi-android2" /> No Android (Chrome)</h4>
                     <ol>
@@ -717,8 +844,8 @@ export default function Settings() {
       </div>
 
       <div className="settings-about">
-        <span><strong>FACTOR PRO</strong> · Gestão Financeira Inteligente</span>
-        <span>Versão 1.0 · Etapa 1 — clientes, cheques e boletos</span>
+        <span><strong>{appName}</strong> · Gestão Financeira Inteligente</span>
+        <span>Versão 1.3 · Gestão completa — clientes, documentos, operações, recebimentos e relatórios</span>
       </div>
     </div>
   )

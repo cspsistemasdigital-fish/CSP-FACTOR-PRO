@@ -31,7 +31,12 @@ def upgrade():
         )
     # Defaults for new brand keys are applied on read by services/settings.py;
     # persist them so admins see/edit them immediately after the upgrade.
-    settings = sa.table('settings', sa.column('key', sa.String), sa.column('value', sa.Text))
+    settings = sa.table(
+        'settings',
+        sa.column('key', sa.String),
+        sa.column('value', sa.Text),
+        sa.column('updated_at', sa.DateTime(timezone=True)),
+    )
     defaults = {
         'app_name': 'FACTOR PRO',
         'logo_path': '',
@@ -45,7 +50,7 @@ def upgrade():
         ).first()
         if not exists:
             op.execute(
-                settings.insert().values(key=key, value=value)
+                settings.insert().values(key=key, value=value, updated_at=sa.func.now())
             )
 
 

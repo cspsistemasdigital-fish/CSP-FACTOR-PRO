@@ -1,7 +1,7 @@
 """Shared helpers for the cheque and boleto endpoints (attachments, history)."""
 from __future__ import annotations
 
-import os
+from pathlib import Path
 
 from flask import current_app, jsonify, request, send_file
 
@@ -73,10 +73,11 @@ def upload_attachment(document, entity: str, user):
 def download_attachment(document):
     if not document.attachment_path:
         return error("Este documento não possui anexo.", 404)
-    folder = current_app.config["UPLOAD_FOLDER"]
-    path = os.path.join(folder, document.attachment_path)
-    if not os.path.isfile(path):
+    folder = Path(current_app.config["UPLOAD_FOLDER"]).resolve()
+    candidate = (folder / document.attachment_path).resolve()
+    if folder not in candidate.parents or not candidate.is_file():
         return error("Arquivo do anexo não encontrado. Envie novamente.", 404)
+    path = str(candidate)
     download_name = document.attachment_name or document.attachment_path
     return send_file(
         path,

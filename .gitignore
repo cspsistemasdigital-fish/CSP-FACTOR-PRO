@@ -42,6 +42,7 @@ pnpm-debug.log*
 scripts/screenshots/
 scripts/smoke-output.txt
 scripts/flows-output.txt
+scripts/verify-output.txt
 
 # --- Logs locais ---------------------------------------------------------------
 logs/

@@ -14,6 +14,10 @@ export const dashboardApi = {
   summary: (params) => api.get('/dashboard/summary', { params }),
 }
 
+export const alertsApi = {
+  list: () => api.get('/alerts'),
+}
+
 export const clientsApi = {
   list: (params) => api.get('/clients', { params }),
   options: (search, onlyActive = true) =>
@@ -22,6 +26,7 @@ export const clientsApi = {
   history: (id) => api.get(`/clients/${id}/history`),
   create: (payload) => api.post('/clients', payload),
   update: (id, payload) => api.put(`/clients/${id}`, payload),
+  setBlocked: (id, blocked, reason) => api.patch(`/clients/${id}/block`, { blocked, reason }),
   remove: (id) => api.delete(`/clients/${id}`),
 }
 
@@ -89,6 +94,15 @@ export const usersApi = {
 export const settingsApi = {
   get: () => api.get('/settings/company'),
   update: (payload) => api.put('/settings/company', payload),
+  brand: () => api.get('/settings/brand'),
+  uploadLogo: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/settings/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  removeLogo: () => api.delete('/settings/logo'),
 }
 
 export const reportsApi = {
@@ -108,7 +122,7 @@ function exportFilename(extension) {
   const now = new Date()
   const pad = (value) => String(value).padStart(2, '0')
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
-  return `relatorio-factor-pro-${stamp}.${extension}`
+  return `relatorio-${stamp}.${extension}`
 }
 
 export async function downloadProtectedFile(url, filename, params) {

@@ -4,7 +4,7 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapas 4 e 5 concluídas** (produção: e-mail de recuperação, throttling com Redis e verificação completa; experiência: filtros de relatório por usuário, code-splitting e revisão final). Escopo de cinco etapas finalizado.
+Última atualização: **Varredura completa + Etapas 1–5 entregues**. Acrescentados: identidade configurável (nome/logo) com PWA dinâmico, tema claro quente/executivo, alerta global de inadimplentes no boot, bloqueio manual e auditado de clientes e correções de acessibilidade/segurança (migração, traversal de anexos).
 
 ---
 
@@ -67,20 +67,20 @@ FACTOR PRO/
 │   │   │   ├── operations.py  receipts.py  reports.py
 │   │   │   ├── dashboard.py  settings.py  documents_utils.py
 │   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, document, audit, setting, reset_token, report_filter, base
-│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email
+│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, settings, alerts
 │   │   └── utils/             ← validators, responses, security (throttling), files
-│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py
-│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production)
+│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + a7c19d4e8b52_client_block_and_brand.py
+│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, settings, alerts)
 │   ├── instance/              ← factorpro.db + uploads/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx            ← árvore de rotas + guardas (páginas com React.lazy)
-│   │   ├── main.jsx  styles/app.css
+│   │   ├── main.jsx  styles/app.css  styles/brand.css
 │   │   ├── api/               ← client.js (axios + refresh), index.js (endpoints)
-│   │   ├── context/           ← AuthContext, ThemeContext, ToastContext
+│   │   ├── context/           ← AuthContext, BrandContext, ThemeContext, ToastContext
 │   │   ├── hooks/             ← useDebouncedValue, useInstallPrompt
-│   │   ├── components/        ← layout/, ui/, form/, documents/, Logo.jsx
+│   │   ├── components/        ← layout/ (GlobalAlerts), clients/ (ClientBlockButton), ui/, form/, documents/, Logo.jsx
 │   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, Dashboard, Settings, Admin
 │   │   └── utils/format.js
 │   ├── public/                ← manifest.webmanifest, sw.js, favicon.svg, icons/
@@ -114,7 +114,7 @@ cd backend
 # Redefinir a senha do administrador (deixa must_change_password=True)
 .\.venv\Scripts\flask.exe reset-admin-password --email admin@factorpro.com.br --password Admin@12345
 
-# Testes (112 testes)
+# Testes (124 testes)
 .\.venv\Scripts\python.exe -m pytest -q
 
 # Migrações
@@ -200,13 +200,13 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | Tabela | Campos-chave |
 |--------|--------------|
 | `users` | name, email (único), password_hash, role, is_active, must_change_password, last_login_at |
-| `clients` | code (`CLI-0001`), name, person_type (PF/PJ), document (normalizado), contatos/endereço, registered_at, operational_limit, status (ATIVO/INATIVO) |
+| `clients` | code (`CLI-0001`), name, person_type (PF/PJ), document (normalizado), contatos/endereço, registered_at, operational_limit, status (ATIVO/INATIVO), **is_blocked, blocked_reason, blocked_at, blocked_by_id** (bloqueio manual por inadimplência) |
+| `settings` | key/value (dados da empresa + `app_name`, `logo_path`, `logo_name`, `logo_version`) — ver tomada de decisão na Seção 10 |
 | `cheques` | code (`CHQ-00001`), number, bank, agency, account, identifier, client_id, issuer_document/name, nominal_amount, discount_amount, interest_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, attachment_* |
 | `boletos` | code (`BOL-00001`), identifier, barcode, bank, client_id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment_* |
 | `operations` | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados |
 | `receipts` | code (`REC-00001`), document_kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment_* — baixa **manual** e auditada |
 | `audit_logs` | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at |
-| `settings` | key/value (dados da empresa) |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
 | `report_filters` | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos) |
 
@@ -240,14 +240,15 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 |---------|-------|
 | **auth** | `POST /login` `POST /refresh` `POST /logout` `GET /me` `POST /change-password` `POST /forgot-password` `POST /reset-password` |
 | **users** (ADMIN) | `GET/POST /` `PUT /<id>` `POST /<id>/reset-password` `GET /audit-logs` (filtros: entity, action, user_id, search, date_from, date_to) |
-| **clients** | `GET /` (search, status, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `DELETE /<id>` (ADMIN) |
+| **clients** | `GET /` (search, status, **blocked**, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `PATCH /<id>/block` (ADMIN/OPERATOR, motivo obrigatório) `DELETE /<id>` (ADMIN) |
 | **cheques** | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` |
 | **boletos** | idem cheques |
 | **operations** | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) |
 | **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` |
 | **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind, status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
 | **dashboard** | `GET /summary` (filtros: date_from, date_to, client_id) |
-| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) |
+| **alerts** | `GET /alerts` (autenticado) — inadimplentes, total vencido, nº de títulos e sinalização de bloqueio |
+| **settings** | `GET /settings/brand` (**público**: nome/logo/cores) · `GET /company` (todos) · `PUT /company` (ADMIN, aceita `app_name`) · `POST /logo` e `DELETE /logo` (ADMIN) |
 
 ### Convenções de payload
 - Valores monetários aceitam `"1.234,56"` ou `"1234.56"`; gravados exatos.
@@ -278,6 +279,13 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   o servidor valida e **canonicaliza** (descarta chaves desconhecidas, `client_name/code`
   são apenas rótulos de exibição). Máximo de **20** filtros ativos por usuário.
   `GET` devolve `{items}`; `DELETE` faz exclusão **lógica** e responde `{message}`.
+- **Bloqueio de cliente**: `PATCH /clients/<id>/block` recebe `{blocked: bool, reason: string}`;
+  `reason` é obrigatório ao bloquear e registrado na auditoria. Cliente bloqueado **não** recebe
+  novos cheques/boletos/operações; recebimentos (para quitar) e edição de títulos existentes
+  continuam permitidos. O bloqueio **nunca** é automático.
+- **Identidade**: `app_name` controla nome exibido/PWA (padrão `FACTOR PRO`);
+  `company_name` continua sendo a razão social institucional de recibos/relatórios.
+  Logo: PNG/JPEG/WebP ≤ 10 MB (SVG rejeitado por XSS), servida em `/brand/logo?v=<token>`.
 
 ---
 
@@ -317,9 +325,18 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 ## 8. Frontend — convenções
 
 - **Identidade visual** (tokens em `styles/app.css`):
-  verde-escuro `#123D32`, verde `#16845B`, verde-claro `#DDF4E8`,
-  azul-petróleo `#173B57`, fundo claro `#F4F7F6`, fundo escuro `#101B1A`.
-  Temas **claro/escuro** com preferência salva; sidebar recolhível; responsivo.
+  verde-escuro `#123D32`, verde `#16845B`, verde-claro `#E4F0E7`, latão `#A9813C`,
+  azul-petróleo `#173B57`, **tema claro quente/executivo** (marfim `#F5F1E8`,
+  superfície `#FFFDF8`) e fundo escuro `#101B1A`. Temas **claro/escuro** com preferência
+  salva; sidebar recolhível; responsivo com `viewport-fit=cover` e safe-area.
+- **Identidade configurável**: `BrandContext` busca `GET /api/settings/brand` no boot
+  (antes do login) e alimenta `Logo.jsx`, `document.title`, manifest e fallback do PWA.
+  Admin altera nome/logo em **Configurações → Dados da empresa → Identidade do aplicativo**;
+  `refreshBrand()` aplica a mudança sem recarregar a página.
+- **Alerta de inadimplentes**: `GlobalAlerts` (em `AppLayout`) consulta `GET /api/alerts`
+  na abertura do app: banner persistente na sessão + **um** toast por boot. O link leva a
+  `/clientes?blocked=1`. O sistema apenas informa; o bloqueio é manual em
+  `ClientForm`/`ClientDetail` (`ClientBlockButton`, com motivo obrigatório e auditoria).
 - **Contraste WCAG AA** garantido por tokens de texto dedicados: `--fp-green-text`,
   `--fp-petroleum-text`, `--fp-danger-text`, `--fp-warning-text` e `--tone-text`
   (por tom de card/toast). Manter ao adicionar novas cores de texto.
@@ -335,14 +352,21 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   (fallback `BootScreen`); layout, guardas e tema permanecem no bundle inicial.
   `vite.config.js` separa `react-vendor` e `charts-vendor` (ApexCharts só é baixado
   nas telas de Dashboard/Relatórios).
-- **Formulários**: `Field` gera id `#field-<name>`; `CurrencyField`, `DocumentField`,
-  `PhoneField`, `ZipField` e `ClientSelect` **não** têm `name` → não têm id de campo
-  (os testes os localizam pelo rótulo). Painel "Conferência dos valores" é **informativo**
+- **Formulários**: `Field` gera id `#field-<name>` (ou id estável via `useId` quando não
+  há `name`) e associa `label`/`aria-describedby` também aos controles passados como
+  `children`. `CurrencyField`, `DocumentField`, `PhoneField`, `ZipField` e `ClientSelect`
+  são localizados pelos testes via rótulo. Painel "Conferência dos valores" é **informativo**
   (não recalcula). `ClientSelect` usa `#client-select-input` + `[role="option"]`.
 - **Feedback**: `ToastContext` (`.fp-toast-<variant>`), `ConfirmDialog`/`Modal`
   (`.fp-modal-foot`, `.btn-danger`), `EmptyState`, `Feedback` (Error/Loading).
-- **PWA**: `sw.js` cacheia **somente** o shell estático; `/api/*` é sempre rede.
-  Service worker registrado **apenas em produção**.
+- **PWA**: `sw.js` cacheia **somente** o shell estático; `/api/*`, `/manifest.webmanifest`
+  e `/brand/logo` são **sempre rede** (nome/logo atualizados sem cache stale). Service worker
+  registrado **apenas em produção**. Manifest é servido dinamicamente pelo Flask em
+  `/manifest.webmanifest`; o arquivo estático em `frontend/public/` atende apenas ao Vite dev.
+  O manifest dinâmico declara **192x192, 512x512 e maskable-512** (o logo enviado pelo admin
+  vem primeiro, quando existe) e responde com `charset=utf-8` — necessário para instalabilidade
+  e acentos corretos. Instalação verificada também em iOS (`navigator.standalone`) e
+  `apple-touch-icon` (`/icons/apple-touch-icon.png`).
 
 ---
 
@@ -350,7 +374,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 | Suíte | Comando | Resultado atual |
 |-------|---------|-----------------|
-| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **112 passed** |
+| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **124 passed** |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **89/89** |
 | Fluxos funcionais UI | `node scripts/browser_flows.mjs` | **37/37** |
 | Verificação completa | `node scripts/verify_all.mjs` | pytest → build → smoke → fluxos |
@@ -464,9 +488,22 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   ~92 kB (+166 kB de React compartilhado); ApexCharts (~580 kB) só carrega em
   Dashboard/Relatórios, sem aviso de chunk grande.
 - **Verificação**: fluxo de UI cobre filtro salvo (criar, listar, aplicar, remover) —
-  fluxos **37/37**; suíte total **112 passed**.
+  fluxos **37/37**; suíte total **124 passed** após a varredura.
 - **Revisão final**: textos, acessibilidade AA, responsividade e documentação
   (`AGENTS.md`, `README.md`, `.env.example`) atualizados.
+
+### Entregue na varredura ✅
+- **Identidade configurável**: `app_name` + logotipo enviado pelo admin (PNG/JPEG/WebP),
+  `GET /api/settings/brand` público, `/manifest.webmanifest` e `/brand/logo` dinâmicos,
+  `BrandContext` no boot (inclusive login) e campo/upload em Configurações.
+- **Tema claro executivo**: marfim/papel com acento latão e verde profundo, AA mantido;
+  metas `theme-color`, previews, gráficos e ícones PWA atualizados.
+- **Inadimplência**: migração `a7c19d4e8b52`, `PATCH /clients/<id>/block`, filtro `blocked`,
+  `GET /api/alerts`, banner/toast no boot, badge nas listas e botão de bloqueio manual com
+  motivo obrigatório e auditoria. Nenhum bloqueio automático.
+- **Correções**: migração com `updated_at` (falha ao aplicar em SQLite resolvida), guard de
+  traversal no download de anexos + teste, `Field` com rótulo/aria associados, ícones iOS,
+  alvos de toque/safe-area e textos de versão/etapa atualizados.
 
 ### Pendências conhecidas / observações
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
@@ -509,5 +546,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 5. **Nunca** guardar o access token em localStorage.
 6. **Nunca** iniciar novas etapas ou módulos sem autorização explícita.
 7. Manter consistência de estilo, tokens de cor e o padrão de resposta da API.
-8. Ao final de cada etapa: apresentar o que foi construído, arquivos, testes,
+8. **Nunca** bloquear cliente automaticamente: o sistema detecta/alerta vencimentos;
+   quem decide e registra o motivo é uma pessoa (ADMIN/OPERATOR).
+9. Ao final de cada etapa: apresentar o que foi construído, arquivos, testes,
    pendências e o próximo passo recomendado — e **atualizar este AGENTS.md**.

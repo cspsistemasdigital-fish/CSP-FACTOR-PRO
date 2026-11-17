@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { clientsApi } from '../../api'
+import { alertsApi, clientsApi } from '../../api'
 import { apiError } from '../../api/client'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
+import ClientBlockButton from '../../components/clients/ClientBlockButton'
 import PageHeader from '../../components/ui/PageHeader'
 import Panel from '../../components/ui/Panel'
 import Field from '../../components/form/Field'
@@ -82,12 +84,16 @@ export default function ClientForm() {
   const editing = Boolean(id)
   const navigate = useNavigate()
   const toast = useToast()
+  const { canWrite } = useAuth()
   const [form, setForm] = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(editing)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [overdue, setOverdue] = useState(null)
+  const [clientBlocked, setClientBlocked] = useState(false)
+  const [clientBlockReason, setClientBlockReason] = useState('')
 
   useEffect(() => {
     if (!editing) return
@@ -95,9 +101,18 @@ export default function ClientForm() {
     ;(async () => {
       setLoading(true)
       try {
-        const { data } = await clientsApi.get(id)
+        const [clientResponse, alertsResponse] = await Promise.all([
+          clientsApi.get(id),
+          alertsApi.list().catch(() => null),
+        ])
+        const { data } = clientResponse
         if (!active) return
         setForm(toForm(data.item))
+        setClientBlocked(Boolean(data.item.is_blocked))
+        setClientBlockReason(data.item.blocked_reason || '')
+        setOverdue(
+          alertsResponse?.data?.items?.find((item) => item.client_id === Number(id)) || null,
+        )
       } catch (requestError) {
         if (active) setLoadError(apiError(requestError).message)
       } finally {
@@ -186,6 +201,18 @@ export default function ClientForm() {
         <Link to={editing ? `/clientes/${id}` : '/clientes'} className="btn btn-light">
           <i className="bi bi-arrow-left" /> Cancelar
         </Link>
+        {editing && canWrite && (
+          <ClientBlockButton
+            clientId={Number(id)}
+            blocked={clientBlocked}
+            reason={clientBlockReason}
+            overdue={overdue}
+            onChanged={(item) => {
+              setClientBlocked(Boolean(item.is_blocked))
+              setClientBlockReason(item.blocked_reason || '')
+            }}
+          />
+        )}
         <button type="submit" form="client-form" className="btn btn-primary" disabled={saving}>
           {saving ? (
             <>
@@ -202,6 +229,20 @@ export default function ClientForm() {
       {message && (
         <div className="alert alert-danger fp-alert" role="alert">
           <i className="bi bi-exclamation-octagon-fill" /> {message}
+        </div>
+      )}
+
+      {editing && overdue?.overdue_documents > 0 && (
+        <div className={`alert ${clientBlocked ? 'alert-danger' : 'alert-warning'} fp-alert`} role="status">
+          <i className="bi bi-exclamation-triangle-fill" />
+          <div>
+            <strong>Cliente com pendências em atraso.</strong>{' '}
+            {overdue.overdue_documents} título(s) vencido(s), totalizando{' '}
+            {formatBRL(overdue.overdue_amount)}.{' '}
+            {clientBlocked
+              ? `Bloqueio ativo — ${clientBlockReason || 'motivo não informado'}. Novos lançamentos são recusados.`
+              : 'Você pode bloquear novos lançamentos usando o botão “Bloquear por inadimplência”.'}
+          </div>
         </div>
       )}
 

@@ -12,7 +12,7 @@ export default function NotFound() {
         </span>
         <h2>Página não encontrada</h2>
         <p>
-          O endereço <code>{location.pathname}</code> não existe no FACTOR PRO ou foi movido.
+          O endereço <code>{location.pathname}</code> não existe neste aplicativo ou foi movido.
           Verifique o link ou volte para o dashboard.
         </p>
         <div className="notfound-actions">

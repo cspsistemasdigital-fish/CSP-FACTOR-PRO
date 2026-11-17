@@ -591,7 +591,7 @@ export default function Dashboard() {
           <i className="bi bi-check2-circle" />
         </div>
         <div className="stage-banner-body">
-          <strong>Etapa 3 concluída: relatórios, exportações e WhatsApp</strong>
+          <strong>Escopo completo: relatórios, exportações, WhatsApp e gestão de inadimplentes</strong>
           <p>
             Consolide a carteira por período, cliente, tipo e situação, exporte em PDF ou planilha e prepare
             mensagens revisáveis para o WhatsApp. Nenhum valor é calculado automaticamente e nada é enviado

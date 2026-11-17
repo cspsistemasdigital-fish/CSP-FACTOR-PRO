@@ -508,7 +508,7 @@ export default function ChequeForm() {
             <div>
               <strong>Valores nunca são recalculados</strong>
               <p>
-                O FACTOR PRO não aplica taxas, juros ou descontos automaticamente. Divergências geram alerta,
+                O sistema não aplica taxas, juros ou descontos automaticamente. Divergências geram alerta,
                 mas não impedem o salvamento — exceto quando o líquido ou os custos superam o nominal.
               </p>
             </div>

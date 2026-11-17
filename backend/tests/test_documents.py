@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import io
 from datetime import date, timedelta
+from pathlib import Path
 
+from app.extensions import db
+from app.models import Cheque
 from conftest import png_bytes
 
 
@@ -272,6 +275,27 @@ def test_upload_download_and_remove_attachment(client, admin_headers, make_clien
     remove = client.delete(f"/api/cheques/{item['id']}/attachment", headers=admin_headers)
     assert remove.status_code == 200
     assert remove.get_json()["item"]["has_attachment"] is False
+
+
+def test_attachment_download_rejects_path_traversal(
+    app, client, admin_headers, make_client, make_cheque
+):
+    client_item = make_client()
+    item = make_cheque(client_item["id"])["item"]
+    outside = Path(app.config["UPLOAD_FOLDER"]).parent / "segredo.pdf"
+    outside.write_bytes(b"%PDF-1.4\n")
+    try:
+        with app.app_context():
+            cheque = db.session.get(Cheque, item["id"])
+            cheque.attachment_path = "../segredo.pdf"
+            db.session.commit()
+
+        response = client.get(
+            f"/api/cheques/{item['id']}/attachment", headers=admin_headers
+        )
+        assert response.status_code == 404
+    finally:
+        outside.unlink(missing_ok=True)
 
 
 def test_attachment_rejects_fake_content(client, admin_headers, make_client, make_cheque):

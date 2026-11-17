@@ -56,8 +56,8 @@ DEFAULTS = {
 
 # Warmer, executive light palette (kept in sync with frontend/src/styles/app.css
 # and frontend/index.html).
-THEME_COLOR = "#123D32"
-BACKGROUND_COLOR = "#F7F4EE"
+THEME_COLOR = "#F5F1E8"
+BACKGROUND_COLOR = "#F5F1E8"
 
 
 def get_settings() -> dict:

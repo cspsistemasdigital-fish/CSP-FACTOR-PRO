@@ -35,7 +35,7 @@ export default function PendingModule({
         </span>
         <div>
           <span className="pending-eyebrow">{stage} · em desenvolvimento</span>
-          <h2>{title} ainda não faz parte da Etapa 1</h2>
+          <h2>{title} ainda não faz parte do escopo entregue</h2>
           <p>{summary}</p>
         </div>
       </section>
@@ -91,7 +91,7 @@ export default function PendingModule({
       )}
 
       {related.length > 0 && (
-        <Panel title="Continuar trabalhando na Etapa 1" icon="bi-arrow-right-circle">
+        <Panel title="Continuar trabalhando no sistema" icon="bi-arrow-right-circle">
           <div className="pending-links">
             {related.map((link) => (
               <Link key={link.to} to={link.to} className="quick-action">

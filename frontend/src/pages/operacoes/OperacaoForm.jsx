@@ -444,7 +444,7 @@ export default function OperacaoForm() {
             <div>
               <strong>Totais nunca são recalculados</strong>
               <p>
-                O FACTOR PRO não aplica taxas, juros ou descontos. Os valores da operação são a soma exata dos
+                O sistema não aplica taxas, juros ou descontos. Os valores da operação são a soma exata dos
                 valores informados em cada documento vinculado.
               </p>
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import GlobalAlerts from './GlobalAlerts'
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(
@@ -44,6 +45,7 @@ export default function AppLayout() {
           onToggleSidebar={() => setCollapsed((value) => !value)}
           onOpenMobile={() => setMobileOpen(true)}
         />
+        <GlobalAlerts />
         <main className="content">
           <Outlet />
         </main>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { LogoMark } from '../Logo'
+import { useBrand } from '../../context/BrandContext'
 import { useTheme } from '../../context/ThemeContext'
 
 const HIGHLIGHTS = [
@@ -22,6 +23,7 @@ const HIGHLIGHTS = [
 
 export default function AuthLayout({ children, footer }) {
   const { isDark, toggle } = useTheme()
+  const { appName } = useBrand()
 
   return (
     <div className="auth-page">
@@ -39,7 +41,7 @@ export default function AuthLayout({ children, footer }) {
           <Link to="/login" className="auth-brand">
             <LogoMark size={46} />
             <span>
-              <strong>FACTOR <em>PRO</em></strong>
+              <strong>{appName}</strong>
               <small>Gestão Financeira Inteligente</small>
             </span>
           </Link>
@@ -48,7 +50,7 @@ export default function AuthLayout({ children, footer }) {
             <span className="auth-eyebrow">Factoring sob controle</span>
             <h1>Cheques, boletos e clientes em um só lugar.</h1>
             <p>
-              Uma operação de factoring exige confiança nos números. O FACTOR PRO registra exatamente o que
+              Uma operação de factoring exige confiança nos números. O sistema registra exatamente o que
               você informa e destaca o que precisa de atenção.
             </p>
           </div>
@@ -79,7 +81,7 @@ export default function AuthLayout({ children, footer }) {
             <Link to="/login" className="auth-brand auth-brand-mobile">
               <LogoMark size={40} />
               <span>
-                <strong>FACTOR <em>PRO</em></strong>
+                <strong>{appName}</strong>
                 <small>Gestão Financeira Inteligente</small>
               </span>
             </Link>
@@ -88,7 +90,7 @@ export default function AuthLayout({ children, footer }) {
         </div>
         {footer && <div className="auth-footer">{footer}</div>}
         <p className="auth-legal">
-          FACTOR PRO · v1.0 · Etapa 1 — estrutura, clientes, cheques e boletos.
+          {appName} · v1.3 · Gestão Financeira Inteligente.
         </p>
       </main>
     </div>

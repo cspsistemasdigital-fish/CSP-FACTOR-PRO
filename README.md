@@ -12,7 +12,10 @@ Este repositório entrega as **cinco etapas** do escopo: estrutura, banco,
 autenticação, clientes, cheques e boletos (Etapa 1); operações, recebimentos e recibos
 (Etapa 2); relatórios, exportações PDF/planilha, WhatsApp e dashboard completo (Etapa 3);
 produção com e-mail de recuperação e throttling distribuído (Etapa 4); filtros de
-relatório por usuário e carregamento otimizado do SPA (Etapa 5).
+relatório por usuário e carregamento otimizado do SPA (Etapa 5). A varredura final
+acrescentou **identidade configurável** (nome/logo da empresa no app e no PWA), **tema claro
+marfim/executivo**, **alerta de inadimplentes na abertura** e **bloqueio manual e auditado**
+de clientes com títulos vencidos.
 
 ---
 
@@ -48,6 +51,7 @@ python -m venv .venv
 Copy-Item .env.example .env
 
 # Banco + administrador + dados de demonstração (opcional)
+.\.venv\Scripts\flask.exe db upgrade   # aplica todas as migrações (inclui bloqueio/brand)
 .\.venv\Scripts\flask.exe seed
 .\.venv\Scripts\flask.exe seed-demo    # opcional: dados [DEMO]
 
@@ -74,12 +78,25 @@ npm run build
 - **Administrador:** `admin@factorpro.com.br` / `Admin@12345`
 - No primeiro acesso o sistema **exige a troca da senha** (comportamento intencional).
 
+### Identidade, tema e inadimplência
+
+- Administradores: **Configurações → Dados da empresa → Identidade do aplicativo** para trocar o
+  **nome exibido** e enviar/remover o **logotipo** (PNG/JPEG/WebP, até 10 MB). O nome institucional
+  continua em **Razão social** para recibos, relatórios e mensagens.
+- O nome/logo aparecem no login, no menu, no título da aba e no aplicativo instalado (PWA).
+  O manifesto é dinâmico: o service worker nunca guarda `/manifest.webmanifest` nem `/brand/logo` em cache.
+- Tema claro marfim/papel com acento latão e verde profundo; o tema escuro permanece disponível.
+- Ao abrir o app, um banner (e um aviso único) resume clientes com títulos vencidos. O sistema
+  **informa** a inadimplência; em **Clientes**, o responsável decide bloquear manualmente o cliente
+  (motivo obrigatório e auditoria). Bloqueados não recebem novos cheques/boletos/operações, mas ainda
+  podem quitar dívidas e ter títulos existentes editados.
+
 ---
 
 ## Testes
 
 ```powershell
-# Backend — 112 testes
+# Backend — 124 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
 # Interface — smoke + acessibilidade (89 checagens) e fluxos (37 checagens)

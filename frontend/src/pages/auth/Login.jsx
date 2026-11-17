@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import { useToast } from '../../context/ToastContext'
 import { apiError } from '../../api/client'
 import Field from '../../components/form/Field'
@@ -8,6 +9,7 @@ import AuthLayout from '../../components/layout/AuthLayout'
 
 export default function Login() {
   const { user, login } = useAuth()
+  const { appName } = useBrand()
   const toast = useToast()
   const navigate = useNavigate()
   const location = useLocation()
@@ -61,7 +63,7 @@ export default function Login() {
     >
       <div className="auth-card-title">
         <span className="auth-badge">Acesso restrito</span>
-        <h2>Entrar no FACTOR PRO</h2>
+        <h2>Entrar no {appName}</h2>
         <p>Informe suas credenciais para acessar a gestão financeira.</p>
       </div>
 

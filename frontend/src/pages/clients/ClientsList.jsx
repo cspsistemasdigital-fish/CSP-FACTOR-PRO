@@ -27,6 +27,7 @@ export default function ClientsList() {
   const page = Number(params.get('page') || 1)
   const search = params.get('search') || ''
   const status = params.get('status') || ''
+  const blocked = params.get('blocked') || ''
   const sort = params.get('sort') || 'name'
   const order = params.get('order') || 'asc'
 
@@ -68,6 +69,7 @@ export default function ClientsList() {
       const requestParams = { page, per_page: 20, sort, order }
       if (search) requestParams.search = search
       if (status) requestParams.status = status
+      if (blocked) requestParams.blocked = blocked
       const { data } = await clientsApi.list(requestParams)
       setItems(data.items || [])
       setMeta(data.meta)
@@ -78,7 +80,7 @@ export default function ClientsList() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, status, sort, order])
+  }, [page, search, status, blocked, sort, order])
 
   useEffect(() => {
     load()
@@ -89,7 +91,7 @@ export default function ClientsList() {
     setParams(new URLSearchParams())
   }
 
-  const hasFilters = Boolean(search || status)
+  const hasFilters = Boolean(search || status || blocked)
 
   return (
     <div className="page">
@@ -131,6 +133,13 @@ export default function ClientsList() {
           hint="Bloqueados para novos documentos"
         />
         <SummaryTile
+          label="Inadimplentes bloqueados"
+          value={formatNumber(totals.blocked || 0)}
+          icon="bi-exclamation-triangle"
+          tone="danger"
+          hint="Decisão manual, registrada na auditoria"
+        />
+        <SummaryTile
           label="Limite operacional somado"
           value={formatBRL(totals.operational_limit || 0)}
           icon="bi-sliders"
@@ -162,6 +171,18 @@ export default function ClientsList() {
               <option value="">Todos</option>
               <option value="ATIVO">Ativos</option>
               <option value="INATIVO">Inativos</option>
+            </select>
+          </label>
+          <label className="filter-select">
+            <span>Inadimplência</span>
+            <select
+              className="form-select fp-input"
+              value={blocked}
+              onChange={(event) => setParam('blocked', event.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="1">Somente bloqueados</option>
+              <option value="0">Sem bloqueio</option>
             </select>
           </label>
           <label className="filter-select">
@@ -206,7 +227,7 @@ export default function ClientsList() {
             title={hasFilters ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado'}
             message={
               hasFilters
-                ? 'Revise a busca ou o filtro de status para encontrar o cliente desejado.'
+                ? 'Revise a busca, o status ou o filtro de inadimplência para encontrar o cliente desejado.'
                 : 'Cadastre o primeiro cliente para começar a registrar cheques e boletos.'
             }
           >
@@ -263,7 +284,14 @@ export default function ClientsList() {
                             {client.name?.trim().charAt(0).toUpperCase() || '?'}
                           </span>
                           <div>
-                            <span className="cell-strong">{client.name}</span>
+                            <span className="cell-strong">
+                              {client.name}
+                              {client.is_blocked && (
+                                <span className="fp-badge fp-badge-danger fp-badge-sm ms-2">
+                                  Inadimplente · bloqueado
+                                </span>
+                              )}
+                            </span>
                             <span className="cell-sub">
                               {client.code} · {client.person_type === 'PJ' ? 'Pessoa jurídica' : 'Pessoa física'}
                             </span>
@@ -304,6 +332,7 @@ export default function ClientsList() {
                             type="button"
                             className="icon-btn sm"
                             title="Ver detalhes"
+                            aria-label={`Ver detalhes de ${client.name}`}
                             onClick={(event) => {
                               event.stopPropagation()
                               navigate(`/clientes/${client.id}`)
@@ -316,6 +345,7 @@ export default function ClientsList() {
                               type="button"
                               className="icon-btn sm"
                               title="Editar"
+                              aria-label={`Editar ${client.name}`}
                               onClick={(event) => {
                                 event.stopPropagation()
                                 navigate(`/clientes/${client.id}/editar`)
@@ -341,7 +371,12 @@ export default function ClientsList() {
                   <div className="client-card-head" onClick={() => navigate(`/clientes/${client.id}`)}>
                     <span className="client-cell-avatar">{client.name?.trim().charAt(0).toUpperCase()}</span>
                     <div className="client-card-title">
-                      <strong>{client.name}</strong>
+                      <strong>
+                        {client.name}
+                        {client.is_blocked && (
+                          <span className="fp-badge fp-badge-danger fp-badge-sm ms-2">Bloqueado</span>
+                        )}
+                      </strong>
                       <small>{client.code} · {formatDocument(client.document)}</small>
                     </div>
                     <StatusBadge status={client.status} size="sm" />

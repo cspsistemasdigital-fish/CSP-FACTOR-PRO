@@ -36,38 +36,52 @@
 - [x] Testes backend (`tests/test_alerts.py`, 5 testes).
 - Resultado: **122 passed**.
 
-### [ ] 3. Frontend — identidade, nome e logo
-- [ ] `BrandContext` + fetch público no boot (inclusive login).
-- [ ] `Logo.jsx` com logo enviada pelo admin (fallback para marca padrão).
-- [ ] Substituir textos fixos "FACTOR PRO" por `appName` / "o sistema" onde fizer sentido.
-- [ ] Configurações: campo "Nome do aplicativo", upload/remoção de logo com preview.
-- [ ] Manifest dinâmico pelo backend + SW sem cache stale de logo/manifest.
+### [x] 3. Frontend — identidade, nome e logo
+- [x] `BrandContext` + fetch público no boot (inclusive login).
+- [x] `Logo.jsx` com logo enviada pelo admin (fallback para marca padrão).
+- [x] Substituir textos fixos "FACTOR PRO" por `appName` / "o sistema" onde fizer sentido.
+- [x] Configurações: campo "Nome do aplicativo", upload/remoção de logo com preview.
+- [x] Manifest dinâmico pelo backend + SW sem cache stale de logo/manifest (em verificação).
 
-### [ ] 4. Frontend — paleta clara mais quente/executiva e responsividade mobile
-- [ ] Tokens claros: marfim/warm white + verde profundo + acento latão; AA mantido.
-- [ ] Atualizar meta theme-color, previews de tema, cores de gráficos e manifest.
-- [ ] Viewport com `viewport-fit=cover`, safe-area, alvos de toque ≥44px, inputs 16px (sem zoom iOS).
-- [ ] Revisar breakpoints existentes (1280/1100/991/767/420) e corrigir problemas reais.
+### [x] 4. Frontend — paleta clara mais quente/executiva e responsividade mobile
+- [x] Tokens claros: marfim/warm white + verde profundo + acento latão; AA mantido.
+- [x] Atualizar meta theme-color, previews de tema, cores de gráficos e manifest.
+- [x] Viewport com `viewport-fit=cover`, safe-area, alvos de toque ≥44px, inputs 16px (sem zoom iOS).
+- [x] Revisar breakpoints existentes (1280/1100/991/767/420) e corrigir problemas reais.
+- Verificado: smoke 89/89 com 0 violações de contraste/corte/toque/overflow em desktop e mobile.
 
-### [ ] 5. Frontend — cliente inadimplente e notificação global
-- [ ] `ClientForm`: botão "Bloquear por inadimplência" + motivo + aviso.
-- [ ] `ClientDetail` e `ClientsList`: badge/banner de inadimplente/bloqueado, filtro.
-- [ ] Banner global no `AppLayout` + toast único na abertura do app com resumo dos inadimplentes.
+### [x] 5. Frontend — cliente inadimplente e notificação global
+- [x] `ClientForm`: botão "Bloquear por inadimplência" + motivo + aviso.
+- [x] `ClientDetail` e `ClientsList`: badge/banner de inadimplente/bloqueado, filtro.
+- [x] Banner global no `AppLayout` + toast único na abertura do app com resumo dos inadimplentes.
 
-### [ ] 6. Correções de bugs encontrados na varredura
-- [ ] `Field` com children: rótulo não associado ao controle (label htmlFor) e `aria-describedby`.
-- [ ] iOS `navigator.standalone` no `useInstallPrompt`; `id` no manifest; apple-touch-icon.
-- [ ] `download_attachment` sem guard de traversal (consistência com delete).
-- [ ] Textos de versão/etapa desatualizados.
-- [ ] Outros bugs encontrados durante a implementação.
+### [x] 6. Correções de bugs encontrados na varredura
+- [x] `Field` com children: rótulo associado ao controle (label htmlFor) e `aria-describedby`.
+- [x] iOS `navigator.standalone` no `useInstallPrompt`; `id` no manifest; apple-touch-icon.
+- [x] `download_attachment` com guard de traversal (consistência com delete).
+- [x] Textos de versão/etapa desatualizados atualizados para v1.3.
+- [x] Migração `a7c19d4e8b52` inseria settings sem `updated_at` (NOT NULL) — corrigido e aplicado.
+- [x] `download_attachment` com guard de traversal + teste de regressão (123 passed).
+- [x] `company_signature` vazia agora persiste como string vazia.
+- [x] Inversão de dependência services→api quebrada (`services/settings.py` com leitura canônica).
+- [x] Manifest dinâmico do Flask (produção) degradado: só declarava o ícone 192px com
+  `sizes: "any"` e reaproveitava o logo como `maskable`. Corrigido para sempre incluir
+  192x192, 512x512 e maskable-512 (o logo do admin vem primeiro quando existe) e
+  `Content-Type: application/manifest+json; charset=utf-8`. Testes de regressão adicionados.
+- [x] `browser_flows.mjs`: seletor genérico `button.btn-outline-danger` passou a acertar o
+  novo botão de bloqueio; uso de `data-testid="client-delete-button"` no botão de exclusão.
+  `ensureAdmin()` agora aguarda o servidor estabilizar após o reset via CLI (debug reloader).
 
-### [ ] 7. Verificação final
-- [ ] pytest (backend)
-- [ ] `npm run build`
-- [ ] `node scripts/browser_smoke.mjs`
-- [ ] `node scripts/browser_flows.mjs`
-- [ ] Atualizar `AGENTS.md`, `README.md`, `.env.example` se necessário.
-- [ ] Commit final + relatório ao usuário.
+### [x] 7. Verificação final
+- [x] pytest (backend) — **124 passed**.
+- [x] `npm run build` — OK (bundle inicial ~95 kB; charts-vendor lazy ~580 kB).
+- [x] `node scripts/browser_smoke.mjs` — **89/89**.
+- [x] `node scripts/browser_flows.mjs` — **37/37**.
+- [x] `node scripts/verify_all.mjs` — cadeia completa verde (pytest → build → smoke → fluxos).
+- [x] PWA servido pelo Flask: `/manifest.webmanifest` dinâmico com UTF-8 e ícones 192/512/maskable,
+  `/sw.js`, `/icons/*`, `/icons/apple-touch-icon.png` e `/brand/logo` (404 correto sem logo).
+- [x] Atualizar `AGENTS.md`, `README.md`, `.env.example` se necessário.
+- [x] Commit final + relatório ao usuário (árvore limpa).
 
 ## Decisões de produto (tomadas para destravar o trabalho)
 1. **Nome do app**: novo campo `app_name` controla toda a interface/PWA (padrão `FACTOR PRO`).

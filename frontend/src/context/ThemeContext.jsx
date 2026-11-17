@@ -2,6 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 
 const ThemeContext = createContext(null)
 
+/* Cores da cromática do navegador por tema (paleta marfim / verde profundo). */
+const CHROME_COLORS = {
+  light: '#F5F1E8',
+  dark: '#101B1A',
+}
+
 function initialTheme() {
   const stored = localStorage.getItem('factorpro-theme')
   if (stored === 'light' || stored === 'dark') return stored
@@ -14,8 +20,18 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     document.documentElement.setAttribute('data-bs-theme', theme)
     document.documentElement.setAttribute('data-theme', theme)
+
     const meta = document.querySelector('meta[name="theme-color"]')
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#101B1A' : '#123D32')
+    if (meta) meta.setAttribute('content', CHROME_COLORS[theme])
+
+    /* No iOS o status bar claro combina com o marfim; no escuro, translúcido. */
+    const statusBar = document.querySelector(
+      'meta[name="apple-mobile-web-app-status-bar-style"]',
+    )
+    if (statusBar) {
+      statusBar.setAttribute('content', theme === 'dark' ? 'black-translucent' : 'default')
+    }
+
     localStorage.setItem('factorpro-theme', theme)
   }, [theme])
 

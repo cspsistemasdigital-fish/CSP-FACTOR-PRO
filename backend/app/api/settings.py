@@ -116,7 +116,7 @@ def update_company():
         "company_address": clean_text(payload.get("company_address"), 220) or "",
         "company_city": clean_text(payload.get("company_city"), 120) or "",
         "company_state": state or "",
-        "company_signature": clean_text(payload.get("company_signature"), 500) or DEFAULTS["company_signature"],
+        "company_signature": clean_text(payload.get("company_signature"), 500),
     }
 
     changes = save_settings(values, g.current_user.id)

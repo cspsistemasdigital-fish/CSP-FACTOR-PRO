@@ -17,14 +17,22 @@ def test_public_brand_and_manifest_use_default_name(client):
     data = brand.get_json()["brand"]
     assert data["app_name"] == "FACTOR PRO"
     assert data["logo_url"] is None
-    assert data["background_color"] == "#F7F4EE"
+    assert data["background_color"] == "#F5F1E8"
+    assert data["theme_color"] == "#F5F1E8"
 
     manifest = client.get("/manifest.webmanifest")
     assert manifest.status_code == 200
     assert "manifest" in manifest.headers["Content-Type"]
+    assert "charset=utf-8" in manifest.headers["Content-Type"].lower()
     body = _manifest(client)
     assert body["short_name"] == "FACTOR PRO"
     assert body["icons"][0]["src"] == "/icons/icon-192.png"
+    # Installability requires explicit 192px/512px icons plus a maskable one.
+    assert [(icon["src"], icon["sizes"], icon["purpose"]) for icon in body["icons"]] == [
+        ("/icons/icon-192.png", "192x192", "any"),
+        ("/icons/icon-512.png", "512x512", "any"),
+        ("/icons/icon-maskable-512.png", "512x512", "maskable"),
+    ]
 
 
 def test_admin_can_change_app_name_everywhere(client, admin_headers):
@@ -47,6 +55,22 @@ def test_admin_can_change_app_name_everywhere(client, admin_headers):
     company = client.get("/api/settings/company", headers=admin_headers).get_json()["settings"]
     assert company["company_name"] == "Aurora Participações S.A."
     assert company["app_name"] == "Banco Aurora"
+
+
+def test_admin_can_clear_signature(client, admin_headers):
+    response = client.put(
+        "/api/settings/company",
+        json={
+            "app_name": "FACTOR PRO",
+            "company_name": "Empresa Sem Rodapé Ltda",
+            "company_signature": "",
+        },
+        headers=admin_headers,
+    )
+    assert response.status_code == 200, response.get_json()
+    assert response.get_json()["settings"]["company_signature"] == ""
+    stored = client.get("/api/settings/company", headers=admin_headers).get_json()["settings"]
+    assert stored["company_signature"] == ""
 
 
 def test_operator_cannot_change_brand(client, operator_headers):
@@ -76,6 +100,12 @@ def test_logo_upload_serving_and_removal(client, admin_headers):
     manifest = _manifest(client)
     assert manifest["icons"][0]["src"] == brand["logo_url"]
     assert manifest["icons"][0]["type"] == "image/png"
+    # Static icons must remain so a custom logo never breaks installability.
+    assert {icon["src"] for icon in manifest["icons"]} >= {
+        "/icons/icon-192.png",
+        "/icons/icon-512.png",
+        "/icons/icon-maskable-512.png",
+    }
 
     removed = client.delete("/api/settings/logo", headers=admin_headers)
     assert removed.status_code == 200

@@ -13,8 +13,9 @@ OUT.mkdir(parents=True, exist_ok=True)
 DARK = "#101F1B"
 GREEN_DARK = "#123D32"
 GREEN = "#16845B"
-GREEN_LIGHT = "#DDF4E8"
+GREEN_LIGHT = "#E4F0E7"
 MINT = "#7FD3AC"
+BRASS = "#A9813C"
 
 
 def load_font(size: int) -> ImageFont.FreeTypeFont:
@@ -71,7 +72,7 @@ def draw_mark(image: Image.Image, scale: float = 1.0) -> Image.Image:
     draw.rounded_rectangle(
         [left, top + s(0.145), left + s(0.205), top + s(0.235)],
         radius=int(s(0.02)),
-        fill=(0xDD, 0xF4, 0xE8, 255),
+        fill=(0xE4, 0xF0, 0xE7, 255),
     )
 
     # Ascending bars
@@ -80,7 +81,7 @@ def draw_mark(image: Image.Image, scale: float = 1.0) -> Image.Image:
     base_y = top + stem_h
     bars = [
         (0.605, 0.16, MINT),
-        (0.695, 0.27, GREEN_LIGHT),
+        (0.695, 0.27, BRASS),
         (0.785, 0.38, GREEN),
     ]
     for left_ratio, height_ratio, color in bars:
@@ -94,7 +95,7 @@ def draw_mark(image: Image.Image, scale: float = 1.0) -> Image.Image:
     draw.rounded_rectangle(
         [left, base_y + s(0.045), s(0.845), base_y + s(0.058)],
         radius=int(s(0.01)),
-        fill=(0xDD, 0xF4, 0xE8, 180),
+        fill=(0xE4, 0xF0, 0xE7, 180),
     )
 
     if scale != 1.0:
