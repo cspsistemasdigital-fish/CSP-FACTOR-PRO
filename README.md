@@ -9,20 +9,22 @@ vencimento e divergência de valores, auditoria completa e interface PWA respons
 > Todo valor é informado pelo usuário e gravado exatamente como digitado. O sistema
 > apenas **compara** valores e exibe **alertas** (divergência, vencimento, limite).
 
-Este repositório entrega as **seis etapas** do escopo: estrutura, banco,
+Este repositório entrega as **sete etapas** do escopo: estrutura, banco,
 autenticação, clientes, cheques e boletos (Etapa 1); operações, recebimentos e recibos
 (Etapa 2); relatórios, exportações PDF/planilha, WhatsApp e dashboard completo (Etapa 3);
 produção com e-mail de recuperação e throttling distribuído (Etapa 4); filtros de
 relatório por usuário e carregamento otimizado do SPA (Etapa 5); **módulo de
 empréstimos** com parcelas editáveis, exposição do cliente, relatório dedicado,
-duplicata para impressão e correção das setas dos selects (Etapa 6).
+duplicata para impressão e correção das setas dos selects (Etapa 6); e **Relatório
+Geral unificado** (cheques, boletos e empréstimos) com **identidade visual
+personalizável** — nome e logo do aplicativo em todas as exportações (Etapa 7).
 
 ---
 
 ## Stack
 
 - **Backend:** Python 3 · Flask · SQLAlchemy · Flask-Migrate · Flask-JWT-Extended · Flask-Cors
-- **Exportações:** ReportLab (PDF) · openpyxl (planilha XLSX)
+- **Exportações:** ReportLab (PDF) · openpyxl (planilha XLSX) · Pillow (ícones PWA do logo)
 - **Frontend:** React · Bootstrap 5 · ApexCharts · React Router · Axios · PWA
 - **Banco:** PostgreSQL em produção · SQLite apenas em desenvolvimento/testes
 
@@ -100,10 +102,35 @@ npm run build
 
 ---
 
+## Relatório Geral e sua marca (Etapa 7)
+
+- Menu **Relatórios → Relatório Geral**: uma única tela para analisar **cheques,
+  boletos e empréstimos**. Filtre por período, cliente, tipo (`CHEQUE`, `BOLETO`,
+  `EMPRESTIMO`), **situação do título** e **situação do empréstimo** (controles
+  separados), vencidos e busca livre.
+- Abas: **Visão geral**, **Clientes e limites**, **Títulos**, **Empréstimos**,
+  **Operações** e **Recebimentos**. A aba Empréstimos reúne cards, gráfico e resumo
+  por situação, tabela de empréstimos e tabela de parcelas (clique numa linha para
+  abrir o detalhe). Nenhum valor é recalculado.
+- Filtros salvos ficam na conta do usuário, com `loan_status` incluído; os filtros
+  também podem ser enviados por e-mail/WhatsApp com texto revisável.
+- **Sua marca no sistema**: em **Configurações** (ADMIN) informe o **nome do
+  aplicativo** e envie/remova o **logotipo** (PNG, JPG, JPEG ou WEBP). O mesmo arquivo
+  é usado como ícone do app, favicon, manifest PWA, logo do menu/telas e marca de
+  **todos os PDFs, XLSX, recibos e duplicatas** — inclusive no nome dos arquivos
+  baixados. Sem logo, o favicon é gerado a partir da inicial do nome.
+- API: `PUT /api/settings/company` (`app_name`), `POST/DELETE /api/settings/company/logo`
+  (ADMIN) e, para o navegador, `GET /api/settings/brand`,
+  `/api/settings/brand/logo`, `/api/settings/brand/favicon` e
+  `/api/settings/brand/manifest.webmanifest` (públicos e somente leitura — `<img>`,
+  favicon e manifest não enviam Bearer).
+
+---
+
 ## Testes
 
 ```powershell
-# Backend — 121 testes
+# Backend — 128 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
 # Interface — smoke + acessibilidade (101), fluxos (37) e empréstimos (23)

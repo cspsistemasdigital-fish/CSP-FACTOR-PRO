@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import { useTheme } from '../../context/ThemeContext'
 import Logo from '../Logo'
 
@@ -36,6 +37,7 @@ const SYSTEM_ITEMS = [
 
 export default function Sidebar({ collapsed, mobileOpen, onNavigate }) {
   const { user, isAdmin, logout } = useAuth()
+  const { appName } = useBrand()
   const { isDark } = useTheme()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
@@ -124,8 +126,8 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate }) {
         )}
         {!collapsed && (
           <div className="sidebar-version">
-            <span>FACTOR PRO</span>
-            <span>v1.4 · Etapa 6</span>
+            <span>{appName}</span>
+            <span>v1.5 · Etapa 7</span>
           </div>
         )}
       </div>

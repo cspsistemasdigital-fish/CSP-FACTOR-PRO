@@ -78,8 +78,9 @@ def _company() -> dict:
 def export_pdf():
     filters = parse_report_filters(request.args)
     report = build_report(filters)
+    company = _company()
     try:
-        payload = render_pdf(report, _company(), g.current_user)
+        payload = render_pdf(report, company, g.current_user)
     except Exception:  # pragma: no cover - reported to the user, logged for diagnosis
         current_app.logger.exception("Falha ao gerar PDF do relatório")
         return error("Não foi possível gerar o PDF do relatório. Tente novamente.", 500)
@@ -88,7 +89,7 @@ def export_pdf():
         BytesIO(payload),
         mimetype="application/pdf",
         as_attachment=True,
-        download_name=export_filename("pdf"),
+        download_name=export_filename("pdf", company),
         max_age=0,
     )
 
@@ -98,8 +99,9 @@ def export_pdf():
 def export_xlsx():
     filters = parse_report_filters(request.args)
     report = build_report(filters)
+    company = _company()
     try:
-        payload = render_xlsx(report, _company())
+        payload = render_xlsx(report, company)
     except Exception:  # pragma: no cover - reported to the user, logged for diagnosis
         current_app.logger.exception("Falha ao gerar planilha do relatório")
         return error("Não foi possível gerar a planilha do relatório. Tente novamente.", 500)
@@ -108,6 +110,6 @@ def export_xlsx():
         BytesIO(payload),
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         as_attachment=True,
-        download_name=export_filename("xlsx"),
+        download_name=export_filename("xlsx", company),
         max_age=0,
     )

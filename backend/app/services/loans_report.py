@@ -19,6 +19,7 @@ from ..extensions import db
 from ..models import AuditAction, Client, Installment, Loan, LoanStatus
 from ..utils.validators import ValidationError, clean_text, format_brl, parse_date, parse_int
 from .audit import log_action
+from .branding import app_display_name, brand_logo_path, company_display_name
 from .clients import exposure_map
 from .loans import serialize_loan
 
@@ -237,9 +238,13 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
     client = db.session.get(Client, client_id)
     if not client or client.is_deleted:
         raise ValidationError({"client_id": "Cliente não encontrado."})
+    from ..api.settings import get_company_settings
+
     scoped = {**filters, "client_id": client_id}
     report = build_report(scoped)
-    company_name = "FACTOR PRO"
+    company = get_company_settings()
+    company_name = company_display_name(company)
+    signature = (company.get("company_signature") or "").strip()
     lines = [
         f"Olá, {client.name}!",
         "",
@@ -258,7 +263,7 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
         f"Lucro de quem empresta: {format_brl(report['cards']['profit_total'])}",
         "",
         "Valores informados no sistema, sujeitos à conferência. Mensagem gerada automaticamente.",
-        company_name,
+        signature or company_name,
     ]
     message = "\n".join(lines)
     phone = (client.whatsapp or client.phone or "").strip()
@@ -275,8 +280,10 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
 
 
 def build_email(filters: dict) -> dict:
+    from ..api.settings import get_company_settings
+
     report = build_report(filters)
-    company = "FACTOR PRO"
+    display_name = app_display_name(get_company_settings())
     lines = [
         f"Relatório de Empréstimos — {report['period_label']}",
         "",
@@ -296,18 +303,20 @@ def build_email(filters: dict) -> dict:
         )
     lines += [
         "",
-        "Resumo gerado pelo FACTOR PRO a partir dos valores informados no sistema.",
+        f"Resumo gerado por {display_name} a partir dos valores informados no sistema.",
         "Este é um resumo; para detalhes, exporte o PDF ou a planilha.",
     ]
     return {
-        "subject": f"FACTOR PRO — Relatório de Empréstimos ({report['period_label']})",
+        "subject": f"{display_name} — Relatório de Empréstimos ({report['period_label']})",
         "body": "\n".join(lines),
         "preview": "\n".join(lines),
     }
 
 
-def export_filename(extension: str) -> str:
-    return f"emprestimos-factor-pro-{datetime.now():%Y%m%d-%H%M}.{extension}"
+def export_filename(extension: str, company: dict | None = None) -> str:
+    from .branding import export_slug
+
+    return f"emprestimos-{export_slug(company)}-{datetime.now():%Y%m%d-%H%M}.{extension}"
 
 
 def audit_export(user, file_format: str, filters: dict) -> None:
@@ -328,7 +337,9 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
     from reportlab.platypus import (
+        Image,
         PageBreak,
         Paragraph,
         SimpleDocTemplate,
@@ -337,16 +348,27 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         TableStyle,
     )
 
+    company_name = company_display_name(company)
+    display_name = app_display_name(company)
+    logo_path = brand_logo_path(company)
+    logo_size = None
+    if logo_path:
+        try:
+            logo_size = ImageReader(logo_path).getSize()
+        except Exception:  # pragma: no cover - unreadable logo falls back to text
+            logo_path = None
+    page_size = landscape(A4)
+
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(A4),
+        pagesize=page_size,
         leftMargin=12 * mm,
         rightMargin=12 * mm,
         topMargin=18 * mm,
-        bottomMargin=16 * mm,
-        title="Relatório de Empréstimos — FACTOR PRO",
-        author=company.get("company_name") or "FACTOR PRO",
+        bottomMargin=22 * mm,
+        title=f"Relatório de Empréstimos — {company_name}",
+        author=company_name,
     )
     styles = getSampleStyleSheet()
     normal = ParagraphStyle("FpNormal", parent=styles["Normal"], fontName="Helvetica", fontSize=8, leading=10)
@@ -368,12 +390,30 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
 
     def footer(canvas, document):
         canvas.saveState()
+        text_x = 12 * mm
+        if logo_path and logo_size:
+            try:
+                logo_height = 8 * mm
+                logo_width = min(logo_height * logo_size[0] / logo_size[1], 40 * mm)
+                canvas.drawImage(
+                    logo_path,
+                    12 * mm,
+                    11 * mm,
+                    width=logo_width,
+                    height=logo_height,
+                    preserveAspectRatio=True,
+                    anchor="sw",
+                    mask="auto",
+                )
+                text_x += logo_width + 4 * mm
+            except Exception:  # pragma: no cover - never break an export for a logo
+                pass
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(colors.HexColor("#5A6B64"))
-        canvas.drawString(12 * mm, 9 * mm, f"{company.get('company_name') or 'FACTOR PRO'} — Relatório de Empréstimos")
-        canvas.drawRightString(landscape(A4)[0] - 12 * mm, 9 * mm, f"Página {document.page}")
+        canvas.drawString(text_x, 9 * mm, f"{display_name} — Relatório de Empréstimos")
+        canvas.drawRightString(page_size[0] - 12 * mm, 9 * mm, f"Página {document.page}")
         canvas.setStrokeColor(grid)
-        canvas.line(12 * mm, 12 * mm, landscape(A4)[0] - 12 * mm, 12 * mm)
+        canvas.line(12 * mm, 21 * mm, page_size[0] - 12 * mm, 21 * mm)
         canvas.restoreState()
 
     def table(data, widths, align_right=(), header_bg=green):
@@ -398,7 +438,14 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         return result
 
     story = []
-    company_name = company.get("company_name") or "FACTOR PRO"
+    if logo_path and logo_size:
+        try:
+            logo_height = 20 * mm
+            logo_width = logo_height * logo_size[0] / logo_size[1]
+            story.append(Image(logo_path, width=logo_width, height=logo_height))
+            story.append(Spacer(1, 4))
+        except Exception:  # pragma: no cover - never break an export for a logo
+            pass
     story.append(Paragraph(escape(company_name), brand))
     contact = " · ".join(
         part for part in (company.get("company_document"), company.get("company_phone"), company.get("company_email")) if part
@@ -544,7 +591,7 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         story.append(
             Paragraph(
                 "Os valores apresentados são os informados no sistema. "
-                "O FACTOR PRO não calcula juros, descontos ou encargos automaticamente.",
+                f"{display_name} não calcula juros, descontos ou encargos automaticamente.",
                 muted,
             )
         )
@@ -555,8 +602,22 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
 
 def render_xlsx(report: dict, company: dict) -> bytes:
     from openpyxl import Workbook
+    from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
+
+    logo_path = brand_logo_path(company)
+
+    def add_logo(ws, anchor: str) -> None:
+        if not logo_path:
+            return
+        try:
+            image = XLImage(logo_path)
+            image.width = min(image.width, 220)
+            image.height = min(image.height, 64)
+            ws.add_image(image, anchor)
+        except Exception:  # pragma: no cover - never break an export for a logo
+            pass
 
     workbook = Workbook()
     header_fill = PatternFill("solid", fgColor="123D32")
@@ -578,6 +639,7 @@ def render_xlsx(report: dict, company: dict) -> bytes:
             cell.border = border
         for index, width in enumerate(widths, start=1):
             ws.column_dimensions[get_column_letter(index)].width = width
+        add_logo(ws, f"{get_column_letter(len(headers) + 2)}1")
         ws.freeze_panes = freeze
 
     def write_rows(ws, rows, money_columns=()):
@@ -599,7 +661,7 @@ def render_xlsx(report: dict, company: dict) -> bytes:
         [
             ["Período", report["period_label"]],
             ["Gerado em", report["generated_at"]],
-            ["Empresa", company.get("company_name") or "FACTOR PRO"],
+            ["Empresa", company_display_name(company)],
             ["Empréstimos", cards["loans_count"]],
             ["Valor emprestado", cards["loan_amount_total"]],
             ["Recebido pelos clientes", cards["received_amount_total"]],

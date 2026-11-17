@@ -116,6 +116,15 @@ export const usersApi = {
 export const settingsApi = {
   get: () => api.get('/settings/company'),
   update: (payload) => api.put('/settings/company', payload),
+  brand: () => api.get('/settings/brand'),
+  uploadLogo: (file) => {
+    const form = new FormData()
+    form.append('file', file)
+    return api.post('/settings/company/logo', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  removeLogo: () => api.delete('/settings/company/logo'),
 }
 
 export const reportsApi = {
@@ -143,11 +152,27 @@ export async function downloadProtectedFile(url, filename, params) {
   const blobUrl = window.URL.createObjectURL(new Blob([response.data]))
   const anchor = document.createElement('a')
   anchor.href = blobUrl
-  anchor.download = filename || 'anexo'
+  anchor.download = serverFilename(response) || filename || 'anexo'
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
   setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000)
+}
+
+/** Prefer the branded filename supplied by the server's Content-Disposition header. */
+function serverFilename(response) {
+  const disposition = response.headers?.['content-disposition']
+  if (!disposition) return null
+  const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8) {
+    try {
+      return decodeURIComponent(utf8[1])
+    } catch {
+      return utf8[1]
+    }
+  }
+  const plain = disposition.match(/filename="?([^";]+)"?/i)
+  return plain ? plain[1].trim() : null
 }
 
 /** Open an authenticated file (attachment) in a new tab without exposing the token. */

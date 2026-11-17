@@ -87,13 +87,14 @@ def report_pdf():
     if failure:
         return failure
     try:
-        payload = render_pdf(build_report(filters), get_company_settings(), g.current_user)
+        company = get_company_settings()
+        payload = render_pdf(build_report(filters), company, g.current_user)
         audit_export(g.current_user, "pdf", filters)
         return send_file(
             BytesIO(payload),
             mimetype="application/pdf",
             as_attachment=True,
-            download_name=export_filename("pdf"),
+            download_name=export_filename("pdf", company),
             max_age=0,
         )
     except Exception:
@@ -108,13 +109,14 @@ def report_xlsx():
     if failure:
         return failure
     try:
-        payload = render_xlsx(build_report(filters), get_company_settings())
+        company = get_company_settings()
+        payload = render_xlsx(build_report(filters), company)
         audit_export(g.current_user, "xlsx", filters)
         return send_file(
             BytesIO(payload),
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             as_attachment=True,
-            download_name=export_filename("xlsx"),
+            download_name=export_filename("xlsx", company),
             max_age=0,
         )
     except Exception:

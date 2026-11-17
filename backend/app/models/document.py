@@ -14,6 +14,12 @@ class DocumentKind:
     LABELS = {CHEQUE: "Cheque", BOLETO: "Boleto"}
 
 
+# Escopo do relatório geral: títulos de crédito mais empréstimos. Não é um
+# DocumentKind (que discrimina anexos/recebimentos) — apenas um filtro de tela.
+REPORT_KINDS = DocumentKind.ALL + ("EMPRESTIMO",)
+REPORT_KIND_LABELS = {**DocumentKind.LABELS, "EMPRESTIMO": "Empréstimo"}
+
+
 class DocumentStatus:
     OPEN = "EM_ABERTO"
     SETTLED = "LIQUIDADO"

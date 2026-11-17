@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useInstallPrompt } from '../../hooks/useInstallPrompt'
 import { initials } from '../../utils/format'
@@ -32,12 +33,13 @@ const TITLES = [
   { match: /^\/administracao/, title: 'Administração' },
 ]
 
-function pageTitle(pathname) {
-  return TITLES.find((entry) => entry.match.test(pathname))?.title || 'FACTOR PRO'
+function pageTitle(pathname, fallback) {
+  return TITLES.find((entry) => entry.match.test(pathname))?.title || fallback
 }
 
 export default function Topbar({ onToggleSidebar, onOpenMobile }) {
   const { user, logout, isAdmin } = useAuth()
+  const { appName } = useBrand()
   const { isDark, toggle } = useTheme()
   const { canInstall, install } = useInstallPrompt()
   const location = useLocation()
@@ -84,8 +86,8 @@ export default function Topbar({ onToggleSidebar, onOpenMobile }) {
           <i className="bi bi-layout-sidebar-inset" />
         </button>
         <div className="topbar-title">
-          <span className="topbar-eyebrow">FACTOR PRO</span>
-          <h1>{pageTitle(location.pathname)}</h1>
+          <span className="topbar-eyebrow">{appName}</span>
+          <h1>{pageTitle(location.pathname, appName)}</h1>
         </div>
       </div>
 

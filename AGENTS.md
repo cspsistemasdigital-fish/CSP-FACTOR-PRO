@@ -4,13 +4,13 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapa 6 concluída** (módulo de Empréstimos com parcelas, limite, relatório, duplicata para impressão, WhatsApp/e-mail e correção das setas dos selects). Escopo de seis etapas finalizado. Verificação: 121 pytest + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
+Última atualização: **Etapa 7 concluída** (Relatório Geral unificado com cheques, boletos e empréstimos; identidade visual personalizável — nome e logo do aplicativo — aplicada em todas as exportações). Escopo de sete etapas finalizado. Verificação: 128 pytest + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
 
 ---
 
 ## 1. Visão geral
 
-Sistema profissional de gestão de factoring. As **seis etapas** do escopo estão concluídas.
+Sistema profissional de gestão de factoring. As **sete etapas** do escopo estão concluídas.
 
 | Etapa | Escopo | Situação |
 |-------|--------|----------|
@@ -20,6 +20,7 @@ Sistema profissional de gestão de factoring. As **seis etapas** do escopo estã
 | **4** | Produção: e-mail de recuperação, throttling com Redis, verificação completa | ✅ Concluída |
 | **5** | Experiência: filtros de relatório por usuário, code-splitting, revisão final | ✅ Concluída |
 | **6** | **Empréstimos**: parcelas, exposição, relatório, duplicata, e-mail/WhatsApp e selects com seta única | ✅ Concluída |
+| **7** | **Relatório Geral unificado** (cheques, boletos e empréstimos) e **identidade visual personalizável** (nome/ícone do app e logo real em todas as exportações) | ✅ Concluída |
 
 > **Novas etapas ou módulos só começam com autorização explícita do usuário.**
 > Módulos ainda não construídos exibem uma página informativa honesta
@@ -50,7 +51,7 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 
 ### Stack obrigatória
 - **Backend**: Python + Flask + SQLAlchemy + Flask-Migrate + Flask-JWT-Extended + Flask-Cors.
-- **Exportações**: ReportLab (PDF A4 paisagem) + openpyxl (planilha com 5 abas).
+- **Exportações**: ReportLab (PDF A4 paisagem) + openpyxl (planilha com 5 abas) + Pillow (ícones PWA a partir do logo enviado).
 - **Frontend**: React (JS) + Bootstrap 5 + ApexCharts + React Router + Axios (PWA).
 - **Banco**: PostgreSQL em produção. **SQLite apenas em desenvolvimento/testes.**
 
@@ -60,7 +61,7 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 FACTOR PRO/
 ├── AGENTS.md                  ← este arquivo (memória técnica)
 ├── README.md                  ← como instalar e rodar
-├── PROGRESSO.md               ← memo de retomada da Etapa 6 (concluída)
+├── PROGRESSO.md               ← memo de retomada das etapas concluídas (até Etapa 7)
 ├── .gitignore
 ├── backend/
 │   ├── app/
@@ -73,10 +74,10 @@ FACTOR PRO/
 │   │   │   ├── operations.py  receipts.py  reports.py  loans.py
 │   │   │   ├── dashboard.py  settings.py  documents_utils.py
 │   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, document, audit, setting, reset_token, report_filter, base
-│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report
+│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding
 │   │   └── utils/             ← validators, responses, security (throttling), files
 │   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + 269e70536ab9_loans_and_installments.py
-│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans)
+│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans, etapa7)
 │   ├── instance/              ← factorpro.db + uploads/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
@@ -84,7 +85,7 @@ FACTOR PRO/
 │   │   ├── App.jsx            ← árvore de rotas + guardas (páginas com React.lazy)
 │   │   ├── main.jsx  styles/app.css  styles/emprestimos.css
 │   │   ├── api/               ← client.js (axios + refresh), index.js (endpoints)
-│   │   ├── context/           ← AuthContext, ThemeContext, ToastContext
+│   │   ├── context/           ← AuthContext, ThemeContext, ToastContext, BrandContext
 │   │   ├── hooks/             ← useDebouncedValue, useInstallPrompt
 │   │   ├── components/        ← layout/, ui/, form/, documents/, Logo.jsx
 │   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Dashboard, Settings, Admin
@@ -121,7 +122,7 @@ cd backend
 # Redefinir a senha do administrador (deixa must_change_password=True)
 .\.venv\Scripts\flask.exe reset-admin-password --email admin@factorpro.com.br --password Admin@12345
 
-# Testes (121 testes)
+# Testes (128 testes)
 .\.venv\Scripts\python.exe -m pytest -q
 
 # Migrações
@@ -158,7 +159,7 @@ Screenshots em `scripts/screenshots/`; saída em `scripts/*-output.txt`.
 
 > O smoke exige dados de demonstração (`flask seed-demo --force`).
 > Após adicionar/registrar um blueprint é preciso **reiniciar o Flask**: uma
-> instância antiga responde 404/405 em `/api/loans`.
+> instância antiga responde 404/405 em `/api/loans` ou `/api/settings/brand`.
 
 `node scripts/verify_all.mjs` (ou `npm run verify` em `frontend/`) encadeia
 **pytest → build → smoke → fluxos → empréstimos** e retorna código de saída
@@ -224,7 +225,7 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `loans` | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete** |
 | `installments` | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição |
 | `audit_logs` | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at |
-| `settings` | key/value (dados da empresa) |
+| `settings` | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`) |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
 | `report_filters` | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos) |
 
@@ -265,9 +266,9 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | **operations** | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) |
 | **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` |
 | **loans** | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email` |
-| **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind, status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
+| **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind=CHEQUE\|BOLETO\|EMPRESTIMO, status, loan_status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
 | **dashboard** | `GET /summary` (filtros: date_from, date_to, client_id) |
-| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) |
+| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
 
 ### Convenções de payload
 - Valores monetários aceitam `"1.234,56"` ou `"1234.56"`; gravados exatos.
@@ -297,18 +298,28 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   `POST /report/email` recebe `{to, message}` e os filtros na **query string**; responde
   `email_sent, subject, preview`. A duplicata `/<id>/duplicata` devolve `item,
   company, generated_at` **sem gravar nada**.
-- **Relatórios**: filtros `date_from, date_to, client_id, kind, status, overdue, search`.
-  Títulos são filtrados por `operation_date`; recebimentos por `receipt_date`.
-  A resposta de `/summary` traz `cards, by_kind, by_status, by_month, clients,
-  documents, operations, receipts, counts, filters, period_label, generated_at`.
-  `/whatsapp` devolve `{item:{client, company, message, phone, url, documents_count,
-  total, documents}}` com texto **editável** (nada é enviado automaticamente).
-  Exportações registram `AuditAction.EXPORT` com entidade `report`.
+- **Relatório Geral unificado**: filtros `date_from, date_to, client_id,
+  kind=CHEQUE|BOLETO|EMPRESTIMO, status (do título), loan_status (do empréstimo),
+  overdue, search`. Títulos são filtrados por `operation_date`/`loan_date`;
+  recebimentos por `receipt_date`. `/summary` traz `cards, by_kind, by_status,
+  by_loan_status, by_month, clients, documents, loans, installments, operations,
+  receipts, counts, filters, period_label, generated_at`. `/whatsapp` devolve
+  `{item:{client, company, message, phone, url, documents_count, loans_count,
+  installments_count, total, documents}}` com texto **editável** (nada é enviado
+  automaticamente). Exportações registram `AuditAction.EXPORT` com entidade `report`.
 - **Filtros salvos**: `POST /reports/filters` recebe `{name, filters:{date_from,
-  date_to, client_id, client_name, client_code, kind, status, overdue, search}}`;
-  o servidor valida e **canonicaliza** (descarta chaves desconhecidas, `client_name/code`
-  são apenas rótulos de exibição). Máximo de **20** filtros ativos por usuário.
-  `GET` devolve `{items}`; `DELETE` faz exclusão **lógica** e responde `{message}`.
+  date_to, client_id, client_name, client_code, kind, status, loan_status, overdue,
+  search}}`; o servidor valida e **canonicaliza** (descarta chaves desconhecidas,
+  `client_name/code` são apenas rótulos de exibição). Máximo de **20** filtros ativos
+  por usuário. `GET` devolve `{items}`; `DELETE` faz exclusão **lógica** e responde
+  `{message}`.
+- **Branding**: `PUT /settings/company` aceita `app_name` (nome do aplicativo);
+  `POST /settings/company/logo` (multipart `file`, png/jpg/jpeg/webp) e
+  `DELETE /settings/company/logo` trocam o logotipo (um único arquivo, usado também
+  como ícone do app). `GET /settings/brand*` é **público e somente leitura** porque
+  `<img>`, favicon e manifest PWA não enviam Bearer — os dados completos da empresa
+  continuam autenticados. O logo aparece em PDFs, XLSX, recibos e duplicatas; o nome
+  exibido é o `app_name` personalizado (ou `company_name` quando não personalizado).
 
 ---
 
@@ -332,7 +343,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | Exportar relatórios (PDF/planilha), gerar mensagem de WhatsApp e **enviar relatório por e-mail** | ✅ | ✅ | ✅ |
 | Salvar/remover **os próprios** filtros de relatório | ✅ | ✅ | ✅ |
 | Administração (usuários + auditoria) | ✅ | ❌ | ❌ |
-| Configurações da empresa (editar) | ✅ | ❌ | ❌ |
+| Configurações da empresa e **identidade visual** (nome/logo do app) — editar | ✅ | ❌ | ❌ |
 
 ### Regras de proteção
 - Excluir cliente é **bloqueado** se houver documentos em aberto/devolvidos (422).
@@ -351,6 +362,12 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   verde-escuro `#123D32`, verde `#16845B`, verde-claro `#DDF4E8`,
   azul-petróleo `#173B57`, fundo claro `#F4F7F6`, fundo escuro `#101B1A`.
   Temas **claro/escuro** com preferência salva; sidebar recolhível; responsivo.
+- **Marca do usuário (white-label)**: `BrandContext` (`useBrand()`) carrega
+  `GET /api/settings/brand` no boot e expõe `app_name`/`logo_url`/`refreshBrand()`.
+  `Logo.jsx`, menu, login, `NotFound` e formulários usam essa marca; o `<title>`, o
+  favicon e o manifest PWA são dinâmicos. Em **Configurações** o ADMIN informa o nome
+  do aplicativo e envia/remove o logotipo (prévia imediata). O mesmo arquivo de logo
+  aparece em PDFs, XLSX, recibos e duplicatas — nunca um "FACTOR PRO" fixo.
 - **Contraste WCAG AA** garantido por tokens de texto dedicados: `--fp-green-text`,
   `--fp-petroleum-text`, `--fp-danger-text`, `--fp-warning-text` e `--tone-text`
   (por tom de card/toast). Manter ao adicionar novas cores de texto. Os avisos de
@@ -361,12 +378,16 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   alinhada como os demais campos. O smoke verifica essa checagem.
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
 - **Dashboard**: filtros em rascunho com botão **Aplicar** (presets aplicam na hora).
-- **Relatórios** (`/relatorios`): filtros em rascunho com **Aplicar**, presets de período,
-  5 abas (Visão geral, Clientes e limites, Títulos, Operações, Recebimentos), paginação
-  local de 25 linhas, exportação por **blob autenticado** e modal de WhatsApp por cliente.
-  **Filtros salvos** ficam na conta do usuário (API `/reports/filters`, até 20),
-  disponíveis em qualquer dispositivo; o rótulo da área é “Filtros salvos na sua conta”.
-  Tabelas usam `.report-table` dentro de `.fp-table-wrap`.
+- **Relatório Geral** (`/relatorios`): filtros em rascunho com **Aplicar**, presets de
+  período, tipo (**Cheques, Boletos, Empréstimos** — `kind`) e **duas situações
+  independentes** (“Situação do título” e “Situação do empréstimo”); 6 abas (Visão geral,
+  Clientes e limites, Títulos, **Empréstimos**, Operações, Recebimentos), paginação local
+  de 25 linhas, exportação por **blob autenticado** e modal de WhatsApp por cliente.
+  A aba Empréstimos traz cards, gráfico/sumário por situação, tabela de empréstimos e
+  de parcelas (clicáveis, levando ao detalhe). **Filtros salvos** ficam na conta do
+  usuário (API `/reports/filters`, até 20), disponíveis em qualquer dispositivo; o rótulo
+  da área é “Filtros salvos na sua conta”. Tabelas usam `.report-table` dentro de
+  `.fp-table-wrap`.
 - **Empréstimos** (`/emprestimos`): formulário com busca automática do cliente
   (`ClientSelect`), valores informados (emprestado/recebido/lucro), parcelas geradas
   como **sugestão editável** (quantidade, 1º vencimento e periodicidade) e aviso de
@@ -386,7 +407,10 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 - **Feedback**: `ToastContext` (`.fp-toast-<variant>`), `ConfirmDialog`/`Modal`
   (`.fp-modal-foot`, `.btn-danger`), `EmptyState`, `Feedback` (Error/Loading).
 - **PWA**: `sw.js` cacheia **somente** o shell estático; `/api/*` é sempre rede.
-  Service worker registrado **apenas em produção**.
+  Service worker registrado **apenas em produção**. O manifest é servido em
+  `/api/settings/brand/manifest.webmanifest` (nome/ícone dinâmicos) e o fallback
+  offline é neutro; downloads por blob preferem o nome de arquivo enviado pelo
+  servidor no `Content-Disposition` (slug da marca).
 
 ---
 
@@ -394,7 +418,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 | Suíte | Comando | Resultado atual |
 |-------|---------|-----------------|
-| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **121 passed** |
+| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **128 passed** |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **101/101** |
 | Fluxos funcionais UI | `node scripts/browser_flows.mjs` | **37/37** |
 | Fluxo de empréstimos UI | `node scripts/browser_loans.mjs` | **23/23** |
@@ -402,8 +426,9 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
-além das telas de operações, recebimentos, relatórios (5 abas e resumo derivado),
-**empréstimos (lista/formulário/detalhe/relatório) e a checagem de seta única dos selects**.
+além das telas de operações, recebimentos, **Relatório Geral (6 abas, inclusive
+Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório) e
+a checagem de seta única dos selects**.
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ
 duplicado (422), cheque com divergência, boleto coerente, exclusão bloqueada, mudança de
 status, exclusão lógica, **auditoria conferida via API**, relatório consolidado,
@@ -414,9 +439,11 @@ duplicata para impressão, relatório com gráficos/cards e exportações PDF/XL
 limpeza automática do empréstimo `EMPRESTIMO-UI-TESTE` e restauração do administrador.
 Os testes de backend incluem e-mail de recuperação (conteúdo, envio, falha de SMTP),
 throttling com Redis (janela deslizante, fallback), exigência de `MAIL_SERVER` em
-produção, CRUD/limite/isolamento dos filtros salvos por usuário e o módulo de
+produção, CRUD/limite/isolamento dos filtros salvos por usuário, o módulo de
 empréstimos (`tests/test_loans.py`: parcelas, limites, exposição, relatório, WhatsApp,
-e-mail e duplicata).
+e-mail e duplicata) e a Etapa 7 (`tests/test_etapa7.py`: filtro `EMPRESTIMO`/`loan_status`
+no Relatório Geral, resumo/cards/by_kind com empréstimos, PDF/XLSX com marca, endpoints
+públicos de branding, upload/remoção de logo e manifest dinâmico).
 
 > Os 422 **intencionais** (duplicidade e exclusão bloqueada) são erros esperados no
 > console do navegador e já são ignorados pelo `browser_flows.mjs`.
@@ -428,7 +455,7 @@ DOM/estilo computado; os screenshots ficam para conferência humana.
 
 ## 10. Estado atual, pendências e próximos passos
 
-**Todas as seis etapas planejadas estão entregues e verificadas.** O sistema roda em
+**Todas as sete etapas planejadas estão entregues e verificadas.** O sistema roda em
 desenvolvimento em `http://127.0.0.1:5000` (Flask servindo o build do SPA) e está pronto
 para uso; a lista abaixo registra o que foi entregue em cada etapa.
 
@@ -546,6 +573,39 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Documentação**: `PROGRESSO.md`, `README.md`, `backend/.env.example` e este
   `AGENTS.md` atualizados com o módulo, rotas, credenciais de teste e contagens.
 
+### Entregue na Etapa 7 ✅
+- **Relatório Geral unificado** (`/relatorios`): o mesmo relatório agora cobre
+  **cheques, boletos e empréstimos**. Novo filtro `kind=EMPRESTIMO` e filtro
+  `loan_status` independente de `status`; constantes `REPORT_KINDS`/`REPORT_KIND_LABELS`
+  em `app/services/reports.py`. `build_report()` passou a devolver `loans`,
+  `installments`, `by_loan_status` e a estender `cards`, `counts`, `by_month` (com
+  `loan_amount`/`received_amount`/`profit`) e `by_kind`. WhatsApp passou a informar
+  `loans_count`/`installments_count`; filtros salvos aceitam `loan_status` no payload
+  canônico (`app/services/report_filters.py`).
+- **Interface**: aba **Empréstimos** no Relatório Geral com cards, gráfico de
+  situação, resumo por situação e tabelas de empréstimos/parcelas (linhas clicáveis);
+  selects separados “Situação do título” e “Situação do empréstimo”. Nenhum valor é
+  recalculado — a regra soberana continua intacta.
+- **Identidade visual personalizável**: `app_name` e o logotipo passaram a fazer
+  parte de `settings` (`PUT /settings/company`, `POST/DELETE /settings/company/logo`,
+  ADMIN). Um único arquivo de imagem é reaproveitado como ícone do app, favicon,
+  manifest PWA, logo do menu/telas e marca em **todos os PDFs, XLSX, recibos e
+  duplicatas** (`app/services/branding.py` + `loans_report.py` + `reports.py`). Sem
+  logo configurado, o favicon é gerado a partir da inicial do nome; `company_display_name()`
+  usa o `app_name` personalizado, senão o `company_name`.
+- **Endpoints públicos de branding**: `GET /api/settings/brand`, `/brand/logo`,
+  `/brand/favicon` e `/brand/manifest.webmanifest` — somente leitura e sem dados
+  sigilosos, necessários porque `<img>`/favicon/manifest não enviam Bearer. O frontend
+  usa `BrandContext` + `useBrand()` para atualizar título, favicon, manifest, menu e
+  prévia em Configurações (`refreshBrand()`).
+- **Exportações com a marca do usuário**: nomes de arquivos usam o slug do nome
+  personalizado via `Content-Disposition`, e downloads por blob respeitam esse nome.
+  Nenhum texto “FACTOR PRO” fixo permanece nos relatórios/duplicatas.
+- **Dependência**: `Pillow>=11.0.0` em `requirements.txt`.
+- **Testes**: `tests/test_etapa7.py` (7 testes) — suíte **128 passed**. Build OK,
+  smoke **101/101**, fluxos **37/37**, fluxo de empréstimos **23/23** via
+  `node scripts/verify_all.mjs`.
+
 ### Pendências conhecidas / observações
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
   credenciais no ambiente); a construção da mensagem, o caminho de envio e a tolerância
@@ -553,7 +613,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - Redis **não está em execução** localmente; o caminho Redis é exercitado por testes com
   um cliente simulado e o fallback em memória é o padrão em dev.
 - Repositório publicado no GitHub: `https://github.com/cspsistemasdigital-fish/CSP-FACTOR-PRO`
-  (branch `main`, commit `04da5ec` da Etapa 6, já enviado via push).
+  (branch `main`, já enviado via push; baseline da Etapa 6 em `04da5ec`).
   O push usa Git Credential Manager; a conta
   `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar como
   `cspsistemasdigital-fish` (`git credential-manager github login`).
@@ -568,7 +628,12 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   grava registro, e o navegador é responsável pela impressão/PDF.
 - A implantação em PostgreSQL/Alembic foi validada apenas no SQLite de desenvolvimento;
   rodar `flask db upgrade` no banco de produção antes do primeiro acesso
-  (inclui a migração `269e70536ab9_loans_and_installments.py`).
+  (inclui a migração `269e70536ab9_loans_and_installments.py`). A Etapa 7 não criou
+  migração: `app_name` e logo são chaves da tabela `settings` já existente.
+- Branding: o logo enviado vira favicon e ícone “any” do manifest; os ícones fixos
+  `192/512` e `maskable` permanecem os do tema para garantir a instalação do PWA.
+  Não há auditoria dedicada para troca de logo (o upload/remoção registra `UPDATE` em
+  `settings`, como as demais configurações).
 
 ### Próximos passos recomendados (melhorias futuras, mediante autorização)
 1. **Validar SMTP real** com um provedor transacional (SPF/DKIM, bounce handling) e

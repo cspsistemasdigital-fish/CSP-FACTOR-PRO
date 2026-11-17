@@ -3,17 +3,19 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { receiptsApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import Logo from '../../components/Logo'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import { formatBRL, formatDate, formatDateTime, formatDocument, formatPhone } from '../../utils/format'
 
 function CompanyBlock({ company }) {
+  const { appName } = useBrand()
   const cityLine = [company.company_city, company.company_state].filter(Boolean).join(' / ')
   return (
     <header className="recibo-company">
       <Logo size={44} showSubtitle={false} />
       <div className="recibo-company-info">
-        <strong>{company.company_name || 'FACTOR PRO'}</strong>
+        <strong>{company.company_name || appName}</strong>
         {company.company_document && <span>CNPJ/CPF: {formatDocument(company.company_document)}</span>}
         {company.company_address && <span>{company.company_address}</span>}
         {cityLine && <span>{cityLine}</span>}
@@ -31,6 +33,7 @@ export default function ReciboPrint() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { appName } = useBrand()
   const [recibo, setRecibo] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -166,13 +169,13 @@ export default function ReciboPrint() {
         )}
 
         <p className="recibo-statement">
-          Este recibo registra um recebimento informado manualmente. O FACTOR PRO não calcula juros, descontos
+          Este recibo registra um recebimento informado manualmente. O {appName} não calcula juros, descontos
           ou encargos: os valores acima são exatamente os informados na baixa.
         </p>
 
         <div className="recibo-signature">
           <div className="recibo-signature-line" />
-          <strong>{company.company_name || 'FACTOR PRO'}</strong>
+          <strong>{company.company_name || appName}</strong>
           {company.company_document && <span>{formatDocument(company.company_document)}</span>}
         </div>
 

@@ -4,6 +4,7 @@ import Chart from 'react-apexcharts'
 import { loansApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import { useTheme } from '../../context/ThemeContext'
 import { useToast } from '../../context/ToastContext'
 import PageHeader from '../../components/ui/PageHeader'
@@ -107,6 +108,7 @@ export default function RelatorioEmprestimos() {
   const { isDark } = useTheme()
   const toast = useToast()
   const { canWrite } = useAuth()
+  const { appName } = useBrand()
 
   const [tab, setTab] = useState('geral')
   const [preset, setPreset] = useState('all')
@@ -874,7 +876,7 @@ export default function RelatorioEmprestimos() {
           <section className="print-page">
             <header className="loan-print-company print-section">
               <div>
-                <strong>FACTOR PRO</strong>
+                <strong>{appName}</strong>
                 <span>Relatório de Empréstimos</span>
               </div>
             </header>
@@ -1042,7 +1044,7 @@ export default function RelatorioEmprestimos() {
               </table>
             </div>
             <footer className="loan-print-foot">
-              <span>Documento gerado pelo FACTOR PRO a partir de valores informados — sem cálculo automático.</span>
+              <span>Documento gerado pelo {appName} a partir de valores informados — sem cálculo automático.</span>
             </footer>
           </section>
         </article>

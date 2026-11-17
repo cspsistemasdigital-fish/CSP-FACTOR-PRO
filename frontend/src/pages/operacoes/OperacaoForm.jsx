@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { operationsApi, clientsApi } from '../../api'
 import { apiError } from '../../api/client'
+import { useBrand } from '../../context/BrandContext'
 import { useToast } from '../../context/ToastContext'
 import PageHeader from '../../components/ui/PageHeader'
 import Panel from '../../components/ui/Panel'
@@ -52,6 +53,7 @@ export default function OperacaoForm() {
   const editing = Boolean(id)
   const navigate = useNavigate()
   const toast = useToast()
+  const { appName } = useBrand()
   const [form, setForm] = useState(EMPTY_FORM)
   const [clientInfo, setClientInfo] = useState(null)
   const [availableDocs, setAvailableDocs] = useState([])
@@ -444,7 +446,7 @@ export default function OperacaoForm() {
             <div>
               <strong>Totais nunca são recalculados</strong>
               <p>
-                O FACTOR PRO não aplica taxas, juros ou descontos. Os valores da operação são a soma exata dos
+                O {appName} não aplica taxas, juros ou descontos. Os valores da operação são a soma exata dos
                 valores informados em cada documento vinculado.
               </p>
             </div>

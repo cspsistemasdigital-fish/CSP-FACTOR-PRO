@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { authApi, settingsApi } from '../api'
 import { apiError } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useBrand } from '../context/BrandContext'
 import { useTheme } from '../context/ThemeContext'
 import { useToast } from '../context/ToastContext'
 import { useInstallPrompt } from '../hooks/useInstallPrompt'
@@ -23,6 +24,9 @@ const EMPTY_PASSWORD = { current: '', password: '', confirm: '' }
 
 const EMPTY_COMPANY = {
   company_name: '',
+  app_name: 'FACTOR PRO',
+  brand_logo_path: '',
+  brand_logo_name: '',
   company_document: '',
   company_phone: '',
   company_email: '',
@@ -64,6 +68,7 @@ function validatePassword(form) {
 
 export default function Settings() {
   const { user, isAdmin, setUser } = useAuth()
+  const { appName, refreshBrand } = useBrand()
   const { theme, setTheme } = useTheme()
   const toast = useToast()
   const { canInstall, install, installed } = useInstallPrompt()
@@ -140,6 +145,58 @@ export default function Settings() {
     loadCompany()
   }, [loadCompany])
 
+  // --- Branding: app name + single logo reused everywhere ----------------
+  const [logoFile, setLogoFile] = useState(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [removingLogo, setRemovingLogo] = useState(false)
+  const [logoPreview, setLogoPreview] = useState(null)
+
+  useEffect(() => () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+  }, [logoPreview])
+
+  const onLogoChange = (event) => {
+    const file = event.target.files?.[0] || null
+    setLogoFile(file)
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoPreview(file ? URL.createObjectURL(file) : null)
+  }
+
+  const applyBrandSettings = (settings, message) => {
+    setCompany((current) => ({ ...current, ...settings }))
+    setLogoFile(null)
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoPreview(null)
+    refreshBrand()
+    toast.success('Marca atualizada', message)
+  }
+
+  const submitLogo = async (event) => {
+    event.preventDefault()
+    if (!logoFile) return
+    setUploadingLogo(true)
+    try {
+      const { data } = await settingsApi.uploadLogo(logoFile)
+      applyBrandSettings(data.settings, data.message)
+    } catch (error) {
+      toast.error('Não foi possível enviar o logotipo', apiError(error).message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const removeLogoImage = async () => {
+    setRemovingLogo(true)
+    try {
+      const { data } = await settingsApi.removeLogo()
+      applyBrandSettings(data.settings, data.message)
+    } catch (error) {
+      toast.error('Não foi possível remover o logotipo', apiError(error).message)
+    } finally {
+      setRemovingLogo(false)
+    }
+  }
+
   const updateCompany = (field) => (value) => {
     setCompany((current) => ({ ...current, [field]: value }))
     setCompanyErrors((current) => ({ ...current, [field]: undefined }))
@@ -154,6 +211,9 @@ export default function Settings() {
     if (!company.company_name.trim() || company.company_name.trim().length < 2) {
       errors.company_name = 'Informe o nome da empresa.'
     }
+    if (!company.app_name?.trim() || company.app_name.trim().length < 2) {
+      errors.app_name = 'Informe o nome do aplicativo.'
+    }
     if (company.company_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(company.company_email)) {
       errors.company_email = 'E-mail inválido.'
     }
@@ -165,10 +225,12 @@ export default function Settings() {
       const { data } = await settingsApi.update({
         ...company,
         company_name: company.company_name.trim(),
+        app_name: company.app_name.trim(),
         company_email: company.company_email.trim(),
         company_state: company.company_state.toUpperCase(),
       })
       setCompany({ ...EMPTY_COMPANY, ...data.settings })
+      refreshBrand()
       toast.success('Configurações salvas', data.message)
     } catch (error) {
       const parsed = apiError(error)
@@ -182,7 +244,7 @@ export default function Settings() {
   const handleInstall = async () => {
     const choice = await install()
     if (choice?.outcome === 'accepted') {
-      toast.success('Aplicativo instalado', 'O FACTOR PRO foi adicionado ao seu dispositivo.')
+      toast.success('Aplicativo instalado', `O ${appName} foi adicionado ao seu dispositivo.`)
     }
   }
 
@@ -201,7 +263,7 @@ export default function Settings() {
     <div className="page">
       <PageHeader
         title="Configurações"
-        subtitle="Perfil, segurança, aparência e dados institucionais do FACTOR PRO."
+        subtitle="Perfil, segurança, aparência, marca e dados institucionais do aplicativo."
         icon="bi-gear-fill"
       />
 
@@ -501,6 +563,87 @@ export default function Settings() {
             <div className="settings-layout">
               <div className="settings-main">
                 <Panel
+                  title="Marca do aplicativo"
+                  subtitle="Personalize o nome e o ícone usados no menu, no PWA e em todas as exportações."
+                  icon="bi-palette"
+                >
+                  <div className="brand-settings">
+                    <div className="brand-logo-preview" aria-label="Prévia do logotipo">
+                      {logoPreview || company.brand_logo_path ? (
+                        <img
+                          src={logoPreview || '/api/settings/brand/logo'}
+                          alt="Logotipo da empresa"
+                        />
+                      ) : (
+                        <i className="bi bi-image" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="brand-logo-info">
+                      <strong>{company.brand_logo_name || 'Logotipo padrão'}</strong>
+                      <p>
+                        Um único arquivo é usado como ícone do aplicativo (favicon, menu e PWA) e como
+                        logotipo em PDF, planilhas, recibos e duplicatas.
+                      </p>
+                      <form onSubmit={submitLogo} className="brand-logo-actions">
+                        <label className="btn btn-outline-primary btn-sm mb-0">
+                          <i className="bi bi-upload" /> Escolher imagem
+                          <input
+                            type="file"
+                            accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                            onChange={onLogoChange}
+                            hidden
+                          />
+                        </label>
+                        {logoFile && (
+                          <button type="submit" className="btn btn-primary btn-sm" disabled={uploadingLogo}>
+                            {uploadingLogo ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm" aria-hidden="true" /> Enviando…
+                              </>
+                            ) : (
+                              <><i className="bi bi-check2" /> Salvar logotipo</>
+                            )}
+                          </button>
+                        )}
+                        {company.brand_logo_path && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={removeLogoImage}
+                            disabled={removingLogo}
+                          >
+                            {removingLogo ? (
+                              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Removendo…</>
+                            ) : (
+                              <><i className="bi bi-trash3" /> Remover</>
+                            )}
+                          </button>
+                        )}
+                      </form>
+                      <small className="text-muted">PNG, JPG ou WEBP · até 10 MB.</small>
+                    </div>
+                  </div>
+                  <div className="form-grid brand-name-field">
+                    <Field
+                      label="Nome do aplicativo"
+                      name="app_name"
+                      icon="bi-type"
+                      className="span-2"
+                      value={company.app_name}
+                      onChange={updateCompanyEvent('app_name')}
+                      error={companyErrors.app_name}
+                      maxLength={60}
+                      hint="Exibido no menu, na tela de login, no PWA e no cabeçalho das exportações."
+                      required
+                    />
+                  </div>
+                  <p className="brand-hint">
+                    <i className="bi bi-info-circle" /> O nome é salvo junto com os dados da empresa pelo botão
+                    “Salvar configurações” abaixo. A imagem é salva imediatamente ao escolher “Salvar logotipo”.
+                  </p>
+                </Panel>
+
+                <Panel
                   title="Dados da empresa"
                   subtitle="Usados em relatórios, exportações e mensagens geradas pelo sistema."
                   icon="bi-building"
@@ -630,10 +773,10 @@ export default function Settings() {
                 <div className="info-note">
                   <i className="bi bi-signpost-split" />
                   <div>
-                    <strong>Uso nas próximas etapas</strong>
+                    <strong>Onde aparecem</strong>
                     <p>
-                      Estes dados serão usados em relatórios, recibos e mensagens de cobrança das Etapas 2 e
-                      3. Nada é enviado automaticamente nesta etapa.
+                      Estes dados aparecem em relatórios, recibos, duplicatas e mensagens geradas. Nenhuma
+                      mensagem é enviada automaticamente — o sistema apenas prepara o texto para conferência.
                     </p>
                   </div>
                 </div>
@@ -644,7 +787,7 @@ export default function Settings() {
           {activeTab === 'aplicativo' && (
             <div className="settings-layout">
               <div className="settings-main">
-                <Panel title="Instalar o FACTOR PRO" subtitle="Use como aplicativo no computador ou celular." icon="bi-phone">
+                <Panel title={`Instalar o ${appName}`} subtitle="Use como aplicativo no computador ou celular." icon="bi-phone">
                   <div className={`install-card ${installed ? 'installed' : ''}`}>
                     <span className="install-icon">
                       <i className={`bi ${installed ? 'bi-check-circle-fill' : 'bi-download'}`} />
@@ -653,7 +796,7 @@ export default function Settings() {
                       <strong>{installed ? 'Aplicativo instalado' : 'Instalação disponível pelo navegador'}</strong>
                       <p>
                         {installed
-                          ? 'O FACTOR PRO está sendo executado como aplicativo instalado neste dispositivo.'
+                          ? `O ${appName} está sendo executado como aplicativo instalado neste dispositivo.`
                           : canInstall
                             ? 'Clique no botão para instalar. O aplicativo abre em janela própria e mantém o mesmo login seguro.'
                             : 'Se o botão de instalação não aparecer, use o menu do navegador e escolha “Instalar aplicativo” ou “Adicionar à tela de início”.'}
@@ -670,14 +813,14 @@ export default function Settings() {
                     <h4><i className="bi bi-windows" /> No computador (Chrome ou Edge)</h4>
                     <ol>
                       <li>Abra o menu do navegador (três pontos).</li>
-                      <li>Escolha “Instalar FACTOR PRO” ou “Aplicativos → Instalar este site”.</li>
+                      <li>Escolha “Instalar {appName}” ou “Aplicativos → Instalar este site”.</li>
                       <li>Confirme a instalação e abra pelo atalho criado.</li>
                     </ol>
                     <h4><i className="bi bi-apple" /> No iPhone ou iPad (Safari)</h4>
                     <ol>
                       <li>Toque no botão Compartilhar.</li>
                       <li>Escolha “Adicionar à Tela de Início”.</li>
-                      <li>Confirme o nome FACTOR PRO e toque em Adicionar.</li>
+                      <li>Confirme o nome {appName} e toque em Adicionar.</li>
                     </ol>
                     <h4><i className="bi bi-android2" /> No Android (Chrome)</h4>
                     <ol>
@@ -717,8 +860,8 @@ export default function Settings() {
       </div>
 
       <div className="settings-about">
-        <span><strong>FACTOR PRO</strong> · Gestão Financeira Inteligente</span>
-        <span>Versão 1.0 · Etapa 1 — clientes, cheques e boletos</span>
+        <span><strong>{appName}</strong> · Gestão Financeira Inteligente</span>
+        <span>Versão 1.5 · Etapa 7 — relatório unificado e marca personalizada</span>
       </div>
     </div>
   )

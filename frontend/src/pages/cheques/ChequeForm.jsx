@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { chequesApi, clientsApi } from '../../api'
 import { apiError } from '../../api/client'
+import { useBrand } from '../../context/BrandContext'
 import { useToast } from '../../context/ToastContext'
 import PageHeader from '../../components/ui/PageHeader'
 import Panel from '../../components/ui/Panel'
@@ -78,6 +79,7 @@ export default function ChequeForm() {
   const editing = Boolean(id)
   const navigate = useNavigate()
   const toast = useToast()
+  const { appName } = useBrand()
   const [searchParams] = useSearchParams()
   const preClient = searchParams.get('cliente')
   const [form, setForm] = useState(EMPTY_FORM)
@@ -508,7 +510,7 @@ export default function ChequeForm() {
             <div>
               <strong>Valores nunca são recalculados</strong>
               <p>
-                O FACTOR PRO não aplica taxas, juros ou descontos automaticamente. Divergências geram alerta,
+                O {appName} não aplica taxas, juros ou descontos automaticamente. Divergências geram alerta,
                 mas não impedem o salvamento — exceto quando o líquido ou os custos superam o nominal.
               </p>
             </div>

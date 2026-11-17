@@ -1,4 +1,23 @@
-export function LogoMark({ size = 40, className = '' }) {
+import { useBrand } from '../context/BrandContext'
+
+export function LogoMark({ size = 40, className = '', src = null, label = null }) {
+  const { logoUrl, appName } = useBrand()
+  const imageSrc = src || logoUrl
+
+  if (imageSrc) {
+    return (
+      <img
+        src={imageSrc}
+        width={size}
+        height={size}
+        className={className}
+        style={{ objectFit: 'contain' }}
+        role="img"
+        alt={label || appName}
+      />
+    )
+  }
+
   return (
     <svg
       width={size}
@@ -6,7 +25,7 @@ export function LogoMark({ size = 40, className = '' }) {
       viewBox="0 0 64 64"
       className={className}
       role="img"
-      aria-label="FACTOR PRO"
+      aria-label={label || appName}
     >
       <rect width="64" height="64" rx="14" fill="#123D32" />
       <rect x="16" y="17" width="9" height="30" rx="2" fill="#FFFFFF" />
@@ -19,15 +38,25 @@ export function LogoMark({ size = 40, className = '' }) {
   )
 }
 
-export default function Logo({ size = 38, showSubtitle = true, light = false }) {
+export default function Logo({
+  size = 38,
+  showSubtitle = true,
+  light = false,
+  name = null,
+  subtitle = null,
+  src = null,
+}) {
+  const { appName } = useBrand()
+  const displayName = name || appName
+
   return (
     <div className={`fp-logo ${light ? 'fp-logo-light' : ''}`}>
-      <LogoMark size={size} />
+      <LogoMark size={size} src={src} label={displayName} />
       <div className="fp-logo-text">
-        <span className="fp-logo-name">
-          FACTOR <em>PRO</em>
-        </span>
-        {showSubtitle && <span className="fp-logo-sub">Gestão Financeira Inteligente</span>}
+        <span className="fp-logo-name">{displayName}</span>
+        {showSubtitle && (
+          <span className="fp-logo-sub">{subtitle || 'Gestão Financeira Inteligente'}</span>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
+import { useBrand } from './context/BrandContext'
 import { LogoMark } from './components/Logo'
 import AppLayout from './components/layout/AppLayout'
 
@@ -41,10 +42,11 @@ const AccessDenied = lazy(() => import('./pages/AccessDenied'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 function BootScreen({ label = 'Verificando sessão segura…' }) {
+  const { appName } = useBrand()
   return (
     <div className="app-boot" role="status" aria-live="polite">
       <LogoMark size={58} />
-      <strong>FACTOR PRO</strong>
+      <strong>{appName}</strong>
       <span>{label}</span>
       <span className="spinner-border spinner-border-sm" aria-hidden="true" />
     </div>

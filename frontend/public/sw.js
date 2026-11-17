@@ -2,7 +2,7 @@
  * Caches only static application shell assets. Financial data (API responses)
  * is never cached - every request to /api is network-only.
  */
-const VERSION = 'factorpro-v1.0.0'
+const VERSION = 'factorpro-v1.5.0'
 const SHELL_CACHE = `${VERSION}-shell`
 const ASSET_CACHE = `${VERSION}-assets`
 const SHELL_ASSETS = [
@@ -65,7 +65,7 @@ self.addEventListener('fetch', (event) => {
           if (cached) return cached
           return new Response(
             '<!doctype html><html lang="pt-BR"><body style="font-family:sans-serif;padding:2rem">' +
-              '<h1>FACTOR PRO</h1><p>Você está sem conexão. Conecte-se à internet para acessar os dados financeiros.</p>' +
+              '<h1>Aplicativo Financeiro</h1><p>Você está sem conexão. Conecte-se à internet para acessar os dados financeiros.</p>' +
               '</body></html>',
             { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
           )

@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { loansApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
+import { useBrand } from '../../context/BrandContext'
 import Logo from '../../components/Logo'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import {
@@ -16,12 +17,13 @@ import {
 const ROWS_PER_PAGE = 14
 
 function CompanyBlock({ company }) {
+  const { appName } = useBrand()
   const cityLine = [company.company_city, company.company_state].filter(Boolean).join(' / ')
   return (
     <header className="loan-print-company print-section">
       <Logo size={46} showSubtitle={false} />
       <div>
-        <strong>{company.company_name || 'FACTOR PRO'}</strong>
+        <strong>{company.company_name || appName}</strong>
         {company.company_document && <span>CNPJ/CPF: {formatDocument(company.company_document)}</span>}
         {company.company_address && <span>{company.company_address}</span>}
         {cityLine && <span>{cityLine}</span>}
@@ -39,6 +41,7 @@ export default function EmprestimoPrint() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { appName } = useBrand()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -62,12 +65,12 @@ export default function EmprestimoPrint() {
 
   useEffect(() => {
     if (!loading && !error && data) {
-      document.title = `Duplicata ${data.item.code} — FACTOR PRO`
+      document.title = `Duplicata ${data.item.code} — ${appName}`
     }
     return () => {
-      document.title = 'FACTOR PRO'
+      document.title = `${appName} | Gestão Financeira Inteligente`
     }
-  }, [loading, error, data])
+  }, [loading, error, data, appName])
 
   if (loading) {
     return (
@@ -136,7 +139,7 @@ export default function EmprestimoPrint() {
                 <div className="loan-print-parties print-section">
                   <div>
                     <h2>Contratante / Empresa</h2>
-                    <strong>{company.company_name || 'FACTOR PRO'}</strong>
+                    <strong>{company.company_name || appName}</strong>
                     {company.company_document && <span>CNPJ/CPF: {formatDocument(company.company_document)}</span>}
                     {company.company_address && <span>{company.company_address}</span>}
                     {[company.company_city, company.company_state].filter(Boolean).length > 0 && (
@@ -225,7 +228,7 @@ export default function EmprestimoPrint() {
                 </div>
 
                 <p className="loan-print-statement print-section">
-                  Os valores acima são exatamente os informados no sistema. O FACTOR PRO não calcula juros,
+                  Os valores acima são exatamente os informados no sistema. O {appName} não calcula juros,
                   descontos, taxas ou encargos automaticamente; as parcelas são vencimentos organizados a partir
                   do valor informado. Este documento é gerado para conferência e impressão, sem criar novo
                   registro.
@@ -238,7 +241,7 @@ export default function EmprestimoPrint() {
                   </div>
                   <div>
                     <span>Assinatura da empresa</span>
-                    <small>{company.company_name || 'FACTOR PRO'}</small>
+                    <small>{company.company_name || appName}</small>
                   </div>
                 </div>
 
