@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="FACTOR PRO">
+  <rect width="64" height="64" rx="14" fill="#123D32"/>
+  <path d="M16 47V17h9v30z" fill="#FFFFFF"/>
+  <rect x="16" y="17" width="24" height="7" rx="2" fill="#FFFFFF"/>
+  <rect x="16" y="28" width="17" height="6" rx="2" fill="#DDF4E8"/>
+  <rect x="36" y="38" width="5" height="9" rx="2" fill="#7FD3AC"/>
+  <rect x="43" y="32" width="5" height="15" rx="2" fill="#DDF4E8"/>
+  <rect x="50" y="25" width="5" height="22" rx="2" fill="#16845B"/>
+</svg>
