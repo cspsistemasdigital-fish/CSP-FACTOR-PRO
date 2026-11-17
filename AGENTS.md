@@ -553,7 +553,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - Redis **não está em execução** localmente; o caminho Redis é exercitado por testes com
   um cliente simulado e o fallback em memória é o padrão em dev.
 - Repositório publicado no GitHub: `https://github.com/cspsistemasdigital-fish/CSP-FACTOR-PRO`
-  (branch `main`; ver `git log` para o commit mais recente, que inclui a Etapa 6).
+  (branch `main`, commit `04da5ec` da Etapa 6, já enviado via push).
   O push usa Git Credential Manager; a conta
   `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar como
   `cspsistemasdigital-fish` (`git credential-manager github login`).

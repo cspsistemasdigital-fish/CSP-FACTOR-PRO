@@ -4,7 +4,7 @@
 > Em caso de interrupção em trabalho futuro, ler este arquivo e o `AGENTS.md`.
 
 **Status final:** backend + frontend + verificação + documentação concluídos.
-Alterações consolidadas em um único commit nesta etapa (ver `git log`).
+Alterações consolidadas no commit `04da5ec` e enviadas para `origin/main` em 17/11/2026.
 
 ## Decisões confirmadas pelo usuário
 - Parcelas **geradas** a partir de quantidade/1º vencimento/periodicidade e **editáveis** antes de salvar. Nenhum juro é calculado; a divisão igual é apenas sugestão.
@@ -44,7 +44,7 @@ Alterações consolidadas em um único commit nesta etapa (ver `git log`).
 - [x] Fluxo de empréstimos: **23/23** (`scripts/browser_loans.mjs`, auto-limpante)
 - [x] `node scripts/verify_all.mjs`: todas as etapas OK
 - [x] Atualizar `AGENTS.md`, `README.md`, `PROGRESSO.md` e `.env.example`
-- [x] Commit das alterações da Etapa 6 (push pendente se credencial não tiver escrita)
+- [x] Commit (`04da5ec`) e push para `origin/main` da Etapa 6
 
 ## Notas de execução
 - O servidor Flask precisa ser **reiniciado** depois de registrar um novo blueprint;
@@ -55,6 +55,5 @@ Alterações consolidadas em um único commit nesta etapa (ver `git log`).
 - Todos os scripts restauram a senha provisória do administrador ao final.
 
 ## Próximo passo
-Fazer push do commit da Etapa 6 para `main` (autenticar como
-`cspsistemasdigital-fish` no Git Credential Manager, se a conta atual não tiver
-permissão de escrita). Após o push, conferir o repositório remoto.
+Nenhuma pendência da Etapa 6. Novas etapas ou módulos só começam com autorização
+explícita do usuário; em caso de retomada, ler este arquivo e o `AGENTS.md`.
