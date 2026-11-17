@@ -565,7 +565,7 @@ def _date_br(value) -> str:
 # WhatsApp
 # ---------------------------------------------------------------------------
 def build_whatsapp(client_id: int, filters: dict) -> dict:
-    from ..api.settings import get_company_settings
+    from .settings import get_company_settings
 
     client = db.session.get(Client, client_id)
     if not client or client.is_deleted:

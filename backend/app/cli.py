@@ -12,7 +12,7 @@ from .models import Boleto, Cheque, Client, Role, Setting, User
 from .services.documents import create_boleto, create_cheque
 from .services.operations import create_operation
 from .services.receipts import create_receipt
-from .api.settings import DEFAULTS
+from .services.settings import DEFAULTS
 
 
 def _ensure_company_settings() -> None:

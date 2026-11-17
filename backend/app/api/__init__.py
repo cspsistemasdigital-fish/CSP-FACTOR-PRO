@@ -1,4 +1,5 @@
 """Blueprint registration."""
+from .alerts import bp as alerts_bp
 from .auth import bp as auth_bp
 from .boletos import bp as boletos_bp
 from .cheques import bp as cheques_bp
@@ -13,6 +14,7 @@ from .users import bp as users_bp
 
 def register_blueprints(app):
     for blueprint in (
+        alerts_bp,
         auth_bp,
         users_bp,
         clients_bp,

@@ -55,6 +55,13 @@ def _resolve_client(payload: dict, errors: dict, *, require_active: bool) -> Cli
             f"O cliente {client.code} está inativo e não pode receber novas operações."
         )
         return None
+    if require_active and getattr(client, "is_blocked", False):
+        reason = client.blocked_reason or "títulos em atraso"
+        errors["client_id"] = (
+            f"O cliente {client.code} está bloqueado por inadimplência ({reason}) "
+            "e não pode receber novas operações."
+        )
+        return None
     return client
 
 

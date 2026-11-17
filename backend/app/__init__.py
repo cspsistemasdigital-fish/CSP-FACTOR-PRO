@@ -1,11 +1,13 @@
 """FACTOR PRO - application factory."""
 from __future__ import annotations
 
+import json
 import logging
+import mimetypes
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, abort, jsonify, request, send_from_directory
 from werkzeug.exceptions import HTTPException
 
 from .config import BASE_DIR, get_config, ProductionConfig
@@ -84,6 +86,62 @@ def _register_security_headers(app: Flask) -> None:
         return response
 
 
+def _register_brand_routes(app: Flask) -> None:
+    """Dynamic PWA manifest and public logo URL (both reflect admin settings)."""
+    from .services.settings import get_brand, get_settings
+
+    @app.get("/manifest.webmanifest")
+    def manifest():
+        brand = get_brand()
+        icon_url = brand["logo_url"]
+        icon_type = "image/png"
+        if icon_url:
+            path = get_settings()["logo_path"]
+            icon_type = mimetypes.guess_type(path)[0] or "image/png"
+        else:
+            icon_url = "/icons/icon-192.png"
+        payload = {
+            "id": "/",
+            "name": f"{brand['app_name']} — Gestão Financeira Inteligente",
+            "short_name": brand["short_name"],
+            "description": "Gestão financeira inteligente para factoring.",
+            "lang": "pt-BR",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+            "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+            "orientation": "any",
+            "background_color": brand["background_color"],
+            "theme_color": brand["theme_color"],
+            "icons": [
+                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "any"},
+                {"src": icon_url, "sizes": "any", "type": icon_type, "purpose": "maskable"},
+            ],
+            "shortcuts": [
+                {"name": "Clientes", "short_name": "Clientes", "url": "/clientes", "icons": [{"src": icon_url, "sizes": "any"}]},
+                {"name": "Cheques", "short_name": "Cheques", "url": "/cheques", "icons": [{"src": icon_url, "sizes": "any"}]},
+                {"name": "Boletos", "short_name": "Boletos", "url": "/boletos", "icons": [{"src": icon_url, "sizes": "any"}]},
+                {"name": "Relatórios", "short_name": "Relatórios", "url": "/relatorios", "icons": [{"src": icon_url, "sizes": "any"}]},
+            ],
+        }
+        response = Response(json.dumps(payload, ensure_ascii=False), mimetype="application/manifest+json")
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/brand/logo")
+    def brand_logo():
+        path = get_settings()["logo_path"]
+        folder = Path(app.config["UPLOAD_FOLDER"]).resolve()
+        if not path:
+            abort(404)
+        candidate = (folder / path).resolve()
+        if folder not in candidate.parents or not candidate.is_file():
+            abort(404)
+        response = send_from_directory(folder, path, max_age=3600)
+        response.headers["Cache-Control"] = "public, max-age=3600"
+        return response
+
+
 def _register_spa(app: Flask) -> None:
     """Serve the compiled React app when frontend/dist exists (single deployment)."""
     dist = (BASE_DIR.parent / "frontend" / "dist").resolve()
@@ -154,11 +212,20 @@ def create_app(config_name: str | None = None) -> Flask:
 
     register_blueprints(app)
     register_cli(app)
+    _register_brand_routes(app)
     _register_spa(app)
 
     @app.get("/api/health")
     def health():
-        return jsonify({"status": "ok", "app": "FACTOR PRO", "version": app.config.get("APP_VERSION", "1.0.0")})
+        from .services.settings import get_brand
+
+        return jsonify(
+            {
+                "status": "ok",
+                "app": get_brand()["app_name"],
+                "version": app.config.get("APP_VERSION", "1.0.0"),
+            }
+        )
 
     if not app.config.get("TESTING"):
         logging.getLogger("werkzeug").setLevel(logging.INFO)

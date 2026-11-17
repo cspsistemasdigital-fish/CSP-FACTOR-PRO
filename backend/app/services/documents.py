@@ -60,6 +60,13 @@ def _resolve_client(payload: dict, errors: dict, *, require_active: bool = True)
     if require_active and client.status != ClientStatus.ACTIVE:
         errors["client_id"] = f"O cliente {client.code} está inativo e não pode receber novos documentos."
         return None
+    if require_active and getattr(client, "is_blocked", False):
+        reason = client.blocked_reason or "títulos em atraso"
+        errors["client_id"] = (
+            f"O cliente {client.code} está bloqueado por inadimplência ({reason}) "
+            "e não pode receber novos documentos."
+        )
+        return None
     return client
 
 
@@ -116,7 +123,9 @@ def build_cheque_payload(payload: dict, existing: Cheque | None = None) -> tuple
         except ValidationError as exc:
             errors.update(exc.errors)
 
-    client = _resolve_client(payload, errors)
+    # Editing an existing document remains possible after a block, so arrears
+    # can be corrected; only new documents are prevented.
+    client = _resolve_client(payload, errors, require_active=existing is None)
     run("number", _required_text, payload.get("number"), "number", "o número do cheque", 30)
     run("bank", _required_text, payload.get("bank"), "bank", "o banco", 80)
     run("agency", _optional_text, payload.get("agency"), "agency", 20)
@@ -219,7 +228,9 @@ def build_boleto_payload(payload: dict, existing: Boleto | None = None) -> tuple
         except ValidationError as exc:
             errors.update(exc.errors)
 
-    client = _resolve_client(payload, errors)
+    # Editing an existing document remains possible after a block, so arrears
+    # can be corrected; only new documents are prevented.
+    client = _resolve_client(payload, errors, require_active=existing is None)
     run("identifier", _required_text, payload.get("identifier"), "identifier", "a identificação do boleto", 60)
     run("barcode", _optional_text, payload.get("barcode"), "barcode", 80)
     run("bank", _required_text, payload.get("bank"), "bank", "o banco emissor", 80)

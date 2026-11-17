@@ -40,6 +40,14 @@ class Client(TimestampMixin, SoftDeleteMixin, db.Model):
     operational_limit = db.Column(db.Numeric(15, 2), nullable=False, default=0)
     notes = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(10), nullable=False, default=ClientStatus.ACTIVE, index=True)
+    # Explicit, audited block for delinquent clients. Derived overdue data is an
+    # alert only; the block is always a human decision (never automatic).
+    is_blocked = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    blocked_reason = db.Column(db.String(255), nullable=True)
+    blocked_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    blocked_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    blocked_by = db.relationship("User", foreign_keys=[blocked_by_id])
 
     cheques = db.relationship("Cheque", back_populates="client", lazy="dynamic")
     boletos = db.relationship("Boleto", back_populates="client", lazy="dynamic")
@@ -73,6 +81,10 @@ class Client(TimestampMixin, SoftDeleteMixin, db.Model):
             "notes": self.notes,
             "status": self.status,
             "status_label": self.status_label,
+            "is_blocked": bool(self.is_blocked),
+            "blocked_reason": self.blocked_reason,
+            "blocked_at": iso(self.blocked_at),
+            "blocked_by": self.blocked_by.name if self.blocked_by else None,
             "created_at": iso(self.created_at),
             "updated_at": iso(self.updated_at),
             "created_by": self.created_by.name if self.created_by else None,

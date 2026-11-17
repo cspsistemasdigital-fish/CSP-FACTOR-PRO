@@ -11,11 +11,12 @@ from ..services.clients import (
     delete_client,
     serialize_client,
     serialize_clients,
+    set_client_block,
     update_client,
 )
 from ..utils.responses import error, json_body, paginated, pagination_args
 from ..utils.security import auth_required
-from ..utils.validators import clean_text
+from ..utils.validators import ValidationError, clean_text
 
 bp = Blueprint("clients", __name__, url_prefix="/api/clients")
 
@@ -49,6 +50,12 @@ def list_clients():
     if request.args.get("status") in ClientStatus.ALL:
         query = query.filter(Client.status == request.args["status"])
 
+    blocked_filter = request.args.get("blocked")
+    if blocked_filter in ("1", "true", "True"):
+        query = query.filter(Client.is_blocked.is_(True))
+    elif blocked_filter in ("0", "false", "False"):
+        query = query.filter(Client.is_blocked.is_(False))
+
     sort = request.args.get("sort", "name")
     sort_map = {
         "name": Client.name,
@@ -70,6 +77,7 @@ def list_clients():
         "clients": total,
         "active": base.filter(Client.status == ClientStatus.ACTIVE).count(),
         "inactive": base.filter(Client.status == ClientStatus.INACTIVE).count(),
+        "blocked": base.filter(Client.is_blocked.is_(True)).count(),
         "operational_limit": float(
             db.session.query(db.func.coalesce(db.func.sum(Client.operational_limit), 0))
             .filter(Client.is_deleted.is_(False))
@@ -147,6 +155,26 @@ def edit_client(client_id: int):
         return error("Cliente não encontrado.", 404)
     client = update_client(client, json_body(), g.current_user)
     return jsonify({"item": serialize_client(client), "message": "Cliente atualizado com sucesso."})
+
+
+@bp.patch("/<int:client_id>/block")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def block_client(client_id: int):
+    client = _get_client_or_none(client_id)
+    if not client:
+        return error("Cliente não encontrado.", 404)
+    payload = json_body()
+    blocked = payload.get("blocked")
+    if not isinstance(blocked, bool):
+        raise ValidationError({"blocked": "Informe blocked como verdadeiro ou falso."})
+    client = set_client_block(client, blocked, payload.get("reason"), g.current_user)
+    action = "bloqueado" if blocked else "desbloqueado"
+    return jsonify(
+        {
+            "item": serialize_client(client),
+            "message": f"Cliente {action} com sucesso.",
+        }
+    )
 
 
 @bp.delete("/<int:client_id>")

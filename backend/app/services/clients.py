@@ -18,6 +18,7 @@ from ..models import (
     Operation,
     Receipt,
     Role,
+    utcnow,
 )
 from ..utils.validators import (
     ValidationError,
@@ -198,6 +199,69 @@ def delete_client(client: Client, user) -> None:
         changes={"name": client.name, "document": client.document},
     )
     db.session.commit()
+
+
+def set_client_block(client: Client, blocked: bool, reason, user) -> Client:
+    """Block/unblock a client for delinquency. Always audited, never automatic."""
+    if user.role not in (Role.ADMIN, Role.OPERATOR):
+        raise PermissionError("Apenas administradores e operadores podem bloquear clientes.")
+
+    clean_reason = clean_text(reason, 255)
+    if blocked:
+        if not clean_reason:
+            raise ValidationError(
+                {"reason": "Informe o motivo do bloqueio (por exemplo: títulos vencidos em atraso)."}
+            )
+        if len(clean_reason) < 5:
+            raise ValidationError({"reason": "O motivo do bloqueio deve ter ao menos 5 caracteres."})
+    else:
+        clean_reason = None
+
+    before = client.to_dict()
+    client.is_blocked = bool(blocked)
+    client.blocked_reason = clean_reason
+    client.blocked_at = utcnow() if blocked else None
+    client.blocked_by_id = user.id
+    client.updated_by_id = user.id
+    after = client.to_dict()
+    changes = diff_changes(before, after)
+    action = "bloqueado" if blocked else "desbloqueado"
+    log_action(
+        AuditAction.STATUS_CHANGE,
+        "client",
+        client.id,
+        f"Cliente {client.code} {action}: {clean_reason or 'sem motivo informado'}",
+        changes=changes,
+    )
+    db.session.commit()
+    return client
+
+
+def overdue_client_ids() -> list[int]:
+    """Client ids with at least one non-deleted pending document past due."""
+    today = date.today()
+    ids: set[int] = set()
+    for model in (Cheque, Boleto):
+        rows = (
+            db.session.query(model.client_id)
+            .filter(
+                model.is_deleted.is_(False),
+                model.status.in_(DocumentStatus.PENDING),
+                model.due_date < today,
+            )
+            .distinct()
+            .all()
+        )
+        ids.update(row[0] for row in rows)
+    if not ids:
+        return []
+    active_ids = {
+        row[0]
+        for row in db.session.query(Client.id)
+        .filter(Client.id.in_(ids), Client.is_deleted.is_(False))
+        .all()
+    }
+    return sorted(active_ids)
 
 
 def _exposure_map(client_ids: list[int]) -> dict[int, dict]:

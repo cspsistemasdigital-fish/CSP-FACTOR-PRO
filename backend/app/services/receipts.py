@@ -290,7 +290,7 @@ def open_documents(
 
 def build_recibo(receipt: Receipt) -> dict:
     """Printable receipt payload: company data + real receipt/document data."""
-    from ..api.settings import get_company_settings
+    from .settings import get_company_settings
 
     document = receipt.resolve_document()
     net = Decimal(document.net_amount or 0) if document else Decimal("0.00")

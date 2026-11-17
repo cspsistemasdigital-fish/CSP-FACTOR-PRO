@@ -68,7 +68,7 @@ def remove_saved_filter(filter_id: int):
 
 
 def _company() -> dict:
-    from .settings import get_company_settings
+    from ..services.settings import get_company_settings
 
     return get_company_settings()
 
