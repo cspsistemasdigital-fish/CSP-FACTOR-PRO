@@ -41,8 +41,25 @@ const TABS = [
   { key: 'seguranca', label: 'Segurança', icon: 'bi-shield-lock' },
   { key: 'aparencia', label: 'Aparência', icon: 'bi-palette' },
   { key: 'empresa', label: 'Dados da empresa', icon: 'bi-building', adminOnly: true },
+  { key: 'backup', label: 'Backup diário', icon: 'bi-hdd-stack', adminOnly: true },
   { key: 'aplicativo', label: 'Aplicativo', icon: 'bi-phone' },
 ]
+
+const EMPTY_BACKUP = {
+  backup_enabled: 'true',
+  backup_time: '03:00',
+  backup_retention_days: '7',
+  backup_include_uploads: 'true',
+  backup_last_at: '',
+  backup_last_error: '',
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function profileInitials(name) {
   return String(name || '?')
@@ -238,6 +255,93 @@ export default function Settings() {
       setCompanyMessage(parsed.message)
     } finally {
       setSavingCompany(false)
+    }
+  }
+
+  // --- Daily backup (ADMIN) ----------------------------------------------
+  const [backupForm, setBackupForm] = useState(EMPTY_BACKUP)
+  const [backups, setBackups] = useState([])
+  const [schedulerEnabled, setSchedulerEnabled] = useState(true)
+  const [backupLoading, setBackupLoading] = useState(isAdmin)
+  const [backupErrors, setBackupErrors] = useState({})
+  const [savingBackup, setSavingBackup] = useState(false)
+  const [runningBackup, setRunningBackup] = useState(false)
+  const [deletingBackup, setDeletingBackup] = useState('')
+
+  const loadBackup = useCallback(async () => {
+    if (!isAdmin) return
+    setBackupLoading(true)
+    try {
+      const { data } = await settingsApi.backupStatus()
+      setBackupForm({ ...EMPTY_BACKUP, ...data.settings })
+      setBackups(data.backups || [])
+      setSchedulerEnabled(Boolean(data.scheduler_enabled))
+    } catch (error) {
+      toast.error('Não foi possível carregar o backup', apiError(error).message)
+    } finally {
+      setBackupLoading(false)
+    }
+  }, [isAdmin, toast])
+
+  useEffect(() => {
+    loadBackup()
+  }, [loadBackup])
+
+  const updateBackup = (field) => (event) => {
+    setBackupForm((current) => ({ ...current, [field]: event.target.value }))
+    setBackupErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  const submitBackup = async (event) => {
+    event.preventDefault()
+    setSavingBackup(true)
+    setBackupErrors({})
+    try {
+      const { data } = await settingsApi.saveBackup(backupForm)
+      setBackupForm({ ...EMPTY_BACKUP, ...data.settings })
+      setBackups(data.backups || [])
+      toast.success('Backup configurado', data.message)
+    } catch (error) {
+      const parsed = apiError(error)
+      setBackupErrors(parsed.errors || {})
+      toast.error('Não foi possível salvar', parsed.message)
+    } finally {
+      setSavingBackup(false)
+    }
+  }
+
+  const runBackup = async () => {
+    setRunningBackup(true)
+    try {
+      const { data } = await settingsApi.runBackup()
+      setBackups(data.backups || [])
+      setBackupForm((current) => ({ ...current, backup_last_at: data.item?.created_at || current.backup_last_at, backup_last_error: '' }))
+      toast.success('Backup criado', `${data.item?.name || 'Arquivo'} salvo com sucesso.`)
+    } catch (error) {
+      toast.error('Não foi possível criar o backup', apiError(error).message)
+    } finally {
+      setRunningBackup(false)
+    }
+  }
+
+  const downloadBackupFile = async (name) => {
+    try {
+      await settingsApi.downloadBackup(name)
+    } catch (error) {
+      toast.error('Não foi possível baixar o backup', apiError(error).message)
+    }
+  }
+
+  const removeBackupFile = async (name) => {
+    setDeletingBackup(name)
+    try {
+      const { data } = await settingsApi.deleteBackup(name)
+      setBackups(data.backups || [])
+      toast.success('Backup removido', data.message)
+    } catch (error) {
+      toast.error('Não foi possível remover o backup', apiError(error).message)
+    } finally {
+      setDeletingBackup('')
     }
   }
 
@@ -784,6 +888,189 @@ export default function Settings() {
             </div>
           )}
 
+          {activeTab === 'backup' && isAdmin && (
+            <div className="settings-layout">
+              <div className="settings-main">
+                <Panel
+                  title="Backup diário"
+                  subtitle="Uma cópia automática do banco e dos anexos é salva todos os dias, sem apagar os dados originais."
+                  icon="bi-hdd-stack"
+                >
+                  {backupLoading ? (
+                    <LoadingBlock label="Carregando configuração de backup…" />
+                  ) : (
+                    <>
+                      <form onSubmit={submitBackup} className="form-grid" noValidate>
+                        <div className="span-2 backup-toggle">
+                          <label className="fp-check">
+                            <input
+                              type="checkbox"
+                              checked={backupForm.backup_enabled === 'true'}
+                              onChange={(event) =>
+                                setBackupForm((current) => ({
+                                  ...current,
+                                  backup_enabled: event.target.checked ? 'true' : 'false',
+                                }))
+                              }
+                            />
+                            <span>
+                              <strong>Ativar backup automático</strong>
+                              <small>
+                                {schedulerEnabled
+                                  ? 'O agendador está ativo nesta instância.'
+                                  : 'O agendador está desativado nesta instância; apenas backups manuais funcionarão.'}
+                              </small>
+                            </span>
+                          </label>
+                        </div>
+                        <Field
+                          label="Horário do backup diário"
+                          name="backup_time"
+                          type="time"
+                          icon="bi-clock"
+                          value={backupForm.backup_time}
+                          onChange={updateBackup('backup_time')}
+                          error={backupErrors.backup_time}
+                          hint="Horário local do servidor em que a cópia automática é criada."
+                          required
+                        />
+                        <Field
+                          label="Manter por quantos dias"
+                          name="backup_retention_days"
+                          type="number"
+                          icon="bi-calendar3"
+                          min={1}
+                          max={365}
+                          value={backupForm.backup_retention_days}
+                          onChange={updateBackup('backup_retention_days')}
+                          error={backupErrors.backup_retention_days}
+                          hint="Backups mais antigos que esse prazo são removidos automaticamente."
+                          required
+                        />
+                        <div className="span-2 backup-toggle">
+                          <label className="fp-check">
+                            <input
+                              type="checkbox"
+                              checked={backupForm.backup_include_uploads === 'true'}
+                              onChange={(event) =>
+                                setBackupForm((current) => ({
+                                  ...current,
+                                  backup_include_uploads: event.target.checked ? 'true' : 'false',
+                                }))
+                              }
+                            />
+                            <span>
+                              <strong>Incluir anexos e fotos no backup</strong>
+                              <small>Recomendado: garante que os documentos enviados também sejam restauráveis.</small>
+                            </span>
+                          </label>
+                        </div>
+                        <div className="span-2 form-actions">
+                          <button type="button" className="btn btn-light" onClick={loadBackup} disabled={savingBackup}>
+                            <i className="bi bi-arrow-counterclockwise" /> Recarregar
+                          </button>
+                          <button type="submit" className="btn btn-primary" disabled={savingBackup}>
+                            {savingBackup ? (
+                              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Salvando…</>
+                            ) : (
+                              <><i className="bi bi-check2" /> Salvar configuração</>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+
+                      <div className="backup-status">
+                        <div>
+                          <span>Último backup</span>
+                          <strong>
+                            {backupForm.backup_last_at
+                              ? formatDateTime(backupForm.backup_last_at)
+                              : 'Nenhum backup registrado'}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Arquivos guardados</span>
+                          <strong>{backups.length}</strong>
+                        </div>
+                        <button type="button" className="btn btn-outline-primary" onClick={runBackup} disabled={runningBackup}>
+                          {runningBackup ? (
+                            <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> Criando…</>
+                          ) : (
+                            <><i className="bi bi-hdd-stack" /> Criar backup agora</>
+                          )}
+                        </button>
+                      </div>
+                      {backupForm.backup_last_error && (
+                        <div className="inline-alert danger mt-2">
+                          <i className="bi bi-exclamation-triangle-fill" />
+                          <span>Último erro: {backupForm.backup_last_error}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </Panel>
+
+                <Panel title="Backups salvos" subtitle="Baixe uma cópia para guardar em outro local ou remova arquivos antigos." icon="bi-archive">
+                  {backups.length ? (
+                    <ul className="backup-list">
+                      {backups.map((entry) => (
+                        <li key={entry.name}>
+                          <i className="bi bi-file-earmark-zip" />
+                          <div>
+                            <strong>{entry.name}</strong>
+                            <span>{formatDateTime(entry.created_at)} · {formatBytes(entry.size)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => downloadBackupFile(entry.name)}
+                            aria-label={`Baixar ${entry.name}`}
+                          >
+                            <i className="bi bi-download" /> Baixar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-link text-danger"
+                            onClick={() => removeBackupFile(entry.name)}
+                            disabled={deletingBackup === entry.name}
+                            aria-label={`Remover ${entry.name}`}
+                          >
+                            <i className="bi bi-trash3" /> {deletingBackup === entry.name ? 'Removendo…' : 'Remover'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="panel-hint">Nenhum backup salvo ainda. Use “Criar backup agora” para gerar o primeiro.</p>
+                  )}
+                </Panel>
+              </div>
+
+              <aside className="settings-side">
+                <div className="info-note">
+                  <i className="bi bi-shield-check" />
+                  <div>
+                    <strong>Segurança dos dados</strong>
+                    <p>
+                      O backup é um arquivo ZIP com o banco e, opcionalmente, os anexos. Ele fica no servidor
+                      em uma pasta protegida e nunca substitui ou altera os dados do aplicativo.
+                    </p>
+                  </div>
+                </div>
+                <div className="info-note">
+                  <i className="bi bi-exclamation-triangle" />
+                  <div>
+                    <strong>Boas práticas</strong>
+                    <p>
+                      Baixe o arquivo periodicamente e guarde-o em outro local (nuvem ou unidade externa).
+                      Assim, uma falha no servidor não impede a recuperação das informações dos clientes.
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
+
           {activeTab === 'aplicativo' && (
             <div className="settings-layout">
               <div className="settings-main">
@@ -861,7 +1148,7 @@ export default function Settings() {
 
       <div className="settings-about">
         <span><strong>{appName}</strong> · Gestão Financeira Inteligente</span>
-        <span>Versão 1.5 · Etapa 7 — relatório unificado e marca personalizada</span>
+        <span>Versão 1.6 · Etapa 8 — exportação em listas, backup, atendente e fotos</span>
       </div>
     </div>
   )

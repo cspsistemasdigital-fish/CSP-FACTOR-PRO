@@ -76,8 +76,10 @@ def _register_security_headers(app: Flask) -> None:
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        # microphone=(self) is required by the virtual assistant's speech
+        # recognition; third-party frames remain blocked.
         response.headers.setdefault(
-            "Permissions-Policy", "geolocation=(), microphone=(), camera=()"
+            "Permissions-Policy", "geolocation=(), microphone=(self), camera=()"
         )
         if request.path.startswith("/api/"):
             response.headers.setdefault("Cache-Control", "no-store")
@@ -131,6 +133,11 @@ def create_app(config_name: str | None = None) -> Flask:
         upload_folder = (BASE_DIR / upload_folder).resolve()
     upload_folder.mkdir(parents=True, exist_ok=True)
     app.config["UPLOAD_FOLDER"] = str(upload_folder)
+    backup_folder = Path(app.config["BACKUP_FOLDER"])
+    if not backup_folder.is_absolute():
+        backup_folder = (BASE_DIR / backup_folder).resolve()
+    backup_folder.mkdir(parents=True, exist_ok=True)
+    app.config["BACKUP_FOLDER"] = str(backup_folder)
 
     # Extensions
     db.init_app(app)
@@ -162,5 +169,8 @@ def create_app(config_name: str | None = None) -> Flask:
 
     if not app.config.get("TESTING"):
         logging.getLogger("werkzeug").setLevel(logging.INFO)
+
+    from .services.backup import start_backup_scheduler
+    start_backup_scheduler(app)
 
     return app

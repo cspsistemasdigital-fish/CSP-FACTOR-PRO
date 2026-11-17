@@ -9,6 +9,7 @@ import SummaryTile from '../components/ui/SummaryTile'
 import Modal from '../components/ui/Modal'
 import ConfirmDialog from '../components/ui/ConfirmDialog'
 import Pagination from '../components/ui/Pagination'
+import ExportXlsxButton from '../components/ui/ExportXlsxButton'
 import EmptyState from '../components/ui/EmptyState'
 import Field from '../components/form/Field'
 import { ErrorBlock, LoadingBlock } from '../components/ui/Feedback'
@@ -344,6 +345,21 @@ export default function Admin() {
         subtitle="Gestão de usuários, perfis de acesso e trilha de auditoria do sistema."
         icon="bi-shield-lock-fill"
       >
+        <ExportXlsxButton
+          resource={tab === 'usuarios' ? 'users' : 'audit'}
+          params={
+            tab === 'auditoria'
+              ? {
+                  ...(auditSearch ? { search: auditSearch } : {}),
+                  ...(auditEntity ? { entity: auditEntity } : {}),
+                  ...(auditAction ? { action: auditAction } : {}),
+                  ...(auditUserId ? { user_id: auditUserId } : {}),
+                  ...(auditFrom ? { date_from: auditFrom } : {}),
+                  ...(auditTo ? { date_to: auditTo } : {}),
+                }
+              : {}
+          }
+        />
         {tab === 'usuarios' ? (
           <button type="button" className="btn btn-primary" onClick={openCreate}>
             <i className="bi bi-person-plus" /> Novo usuário

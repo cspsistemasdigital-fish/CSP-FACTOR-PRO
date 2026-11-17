@@ -21,8 +21,11 @@ def app(tmp_path, monkeypatch):
     application = create_app("testing")
     uploads = tmp_path / "uploads"
     uploads.mkdir()
+    backups = tmp_path / "backups"
+    backups.mkdir()
     application.config.update(
         UPLOAD_FOLDER=str(uploads),
+        BACKUP_FOLDER=str(backups),
         EXPOSE_RESET_TOKEN=True,
     )
 

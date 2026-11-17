@@ -9,15 +9,17 @@ vencimento e divergência de valores, auditoria completa e interface PWA respons
 > Todo valor é informado pelo usuário e gravado exatamente como digitado. O sistema
 > apenas **compara** valores e exibe **alertas** (divergência, vencimento, limite).
 
-Este repositório entrega as **sete etapas** do escopo: estrutura, banco,
+Este repositório entrega as **oito etapas** do escopo: estrutura, banco,
 autenticação, clientes, cheques e boletos (Etapa 1); operações, recebimentos e recibos
 (Etapa 2); relatórios, exportações PDF/planilha, WhatsApp e dashboard completo (Etapa 3);
 produção com e-mail de recuperação e throttling distribuído (Etapa 4); filtros de
 relatório por usuário e carregamento otimizado do SPA (Etapa 5); **módulo de
 empréstimos** com parcelas editáveis, exposição do cliente, relatório dedicado,
-duplicata para impressão e correção das setas dos selects (Etapa 6); e **Relatório
+duplicata para impressão e correção das setas dos selects (Etapa 6); **Relatório
 Geral unificado** (cheques, boletos e empréstimos) com **identidade visual
-personalizável** — nome e logo do aplicativo em todas as exportações (Etapa 7).
+personalizável** — nome e logo do aplicativo em todas as exportações (Etapa 7); e
+**Excel nas listagens, backup diário, atendente virtual por texto/voz, situação única
+no Relatório Geral e múltiplas fotos** em cheques/boletos/recebimentos (Etapa 8).
 
 ---
 
@@ -106,8 +108,9 @@ npm run build
 
 - Menu **Relatórios → Relatório Geral**: uma única tela para analisar **cheques,
   boletos e empréstimos**. Filtre por período, cliente, tipo (`CHEQUE`, `BOLETO`,
-  `EMPRESTIMO`), **situação do título** e **situação do empréstimo** (controles
-  separados), vencidos e busca livre.
+  `EMPRESTIMO`), **um único controle “Situação”** (situações de título e de empréstimo
+  combinadas), vencidos e busca livre. A API continua separando `status` e
+  `loan_status`, inclusive nos filtros salvos e exportações.
 - Abas: **Visão geral**, **Clientes e limites**, **Títulos**, **Empréstimos**,
   **Operações** e **Recebimentos**. A aba Empréstimos reúne cards, gráfico e resumo
   por situação, tabela de empréstimos e tabela de parcelas (clique numa linha para
@@ -127,10 +130,59 @@ npm run build
 
 ---
 
+## Recursos da Etapa 8
+
+### Excel nas listagens
+
+- Botão **Exportar Excel** em Clientes, Cheques, Boletos, Operações, Recebimentos,
+  Empréstimos, Usuários e Auditoria (estes dois últimos, ADMIN).
+- A planilha aplica **os mesmos filtros da tela** (busca, situação, período etc.), sem
+  paginação, e usa o nome/logo configurados em Configurações. Cabeçalho verde, moeda em
+  `R$`, filtro automático e linha congelada; cada download registra `EXPORT` na auditoria.
+- API: `GET /api/export/<resource>/xlsx` e `GET /api/export/resources`. O download é
+  feito por blob autenticado, com o nome de arquivo enviado pelo servidor.
+
+### Backup diário
+
+- Em **Configurações → Backup diário** (ADMIN): ativar/desativar, horário (`HH:MM`),
+  retenção em dias, incluir ou não os uploads, status do agendador, último backup/erro,
+  criar backup manual, baixar e remover arquivos.
+- O ZIP contém o banco (SQLite via API online; PostgreSQL via `pg_dump`), `uploads/`
+  opcional e `manifest.json`. O agendador roda em `threading` e relê as preferências
+  periodicamente; backups manuais funcionam mesmo com o agendador desligado.
+- Variáveis de ambiente: `BACKUP_FOLDER` (`instance/backups`), `BACKUP_SCHEDULER_ENABLED`
+  (`true`, desligue em `TestingConfig`), `BACKUP_CHECK_INTERVAL_SECONDS` (`60`),
+  `BACKUP_PG_DUMP_PATH` (`pg_dump`) e `BACKUP_PG_DUMP_TIMEOUT_SECONDS` (`120`).
+- CLI: `.\.venv\Scripts\flask.exe backup --now`.
+- API: `GET/PUT /api/settings/backup`, `POST /api/settings/backup/run`,
+  `GET /api/settings/backup/<name>/download` e `DELETE /api/settings/backup/<name>`.
+
+### Atendente virtual
+
+- Botão flutuante disponível em todas as telas autenticadas. Digite ou fale (Web Speech
+  API, `pt-BR`) comandos como “cheques”, “boletos”, “clientes”, “relatórios” ou
+  “emprestimos” para abrir a página correspondente do menu lateral.
+- Sugestões e histórico ficam no próprio widget. Se o navegador não oferecer
+  reconhecimento de voz (Chrome/Edge são necessários), o campo de texto continua
+  funcionando; a permissão de microfone é solicitada apenas quando o usuário ativa a voz.
+
+### Múltiplas fotos
+
+- Em **Cheques, Boletos e Recebimentos**, o painel de fotos permite capturar uma imagem
+  por vez pela câmera do celular/tablet (`capture="environment"`), acumular várias na
+  fila e enviar todas depois. O envio é sequencial para respeitar o limite por arquivo.
+- A galeria mostra as fotos por blob autenticado, com visualizar, baixar e remover. O
+  anexo único antigo continua visível; novas fotos usam a tabela `document_attachments`
+  (migração `a7c4e1b9d2f3_document_attachments.py`) com exclusão lógica e auditoria.
+- API: `GET/POST /api/<cheques|boletos|receipts>/<id>/photos` e
+  `GET/DELETE /api/<cheques|boletos|receipts>/<id>/photos/<attachment_id>`.
+
+---
+
 ## Testes
 
 ```powershell
-# Backend — 128 testes
+# Backend — 141 testes (inclui backup, fotos e exportação das listagens)
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
 # Interface — smoke + acessibilidade (101), fluxos (37) e empréstimos (23)
@@ -168,10 +220,16 @@ AGENTS.md   Memória técnica do projeto (leia antes de contribuir)
    empréstimos por e-mail.
 2. Opcional: `RATE_LIMIT_STORAGE_URL=redis://...` para throttling de login compartilhado
    entre instâncias (sem Redis, usa memória com fallback automático).
-3. `flask db upgrade` para aplicar as migrações.
-4. `flask seed` para criar o administrador inicial.
-5. `npm run build` no frontend (o Flask serve `frontend/dist`).
-6. Sirva com um WSGI server (waitress/gunicorn) atrás de HTTPS.
+3. Configure o backup: `BACKUP_FOLDER`, `BACKUP_SCHEDULER_ENABLED=true` em **um único**
+   nó (se houver múltiplas instâncias, use um agendador externo) e, com PostgreSQL,
+   `BACKUP_PG_DUMP_PATH`/`BACKUP_PG_DUMP_TIMEOUT_SECONDS`. O horário, a retenção e a
+   inclusão de uploads são ajustados na interface (tabela `settings`).
+4. `flask db upgrade` para aplicar as migrações (inclui
+   `269e70536ab9_loans_and_installments.py` e
+   `a7c4e1b9d2f3_document_attachments.py`).
+5. `flask seed` para criar o administrador inicial.
+6. `npm run build` no frontend (o Flask serve `frontend/dist`).
+7. Sirva com um WSGI server (waitress/gunicorn) atrás de HTTPS.
 
 Em produção o app **recusa** iniciar com SQLite, com secrets de desenvolvimento ou
 sem `MAIL_SERVER`. Defina `EXPOSE_RESET_TOKEN=false` (padrão em produção).

@@ -127,7 +127,7 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate }) {
         {!collapsed && (
           <div className="sidebar-version">
             <span>{appName}</span>
-            <span>v1.5 · Etapa 7</span>
+            <span>v1.6 · Etapa 8</span>
           </div>
         )}
       </div>

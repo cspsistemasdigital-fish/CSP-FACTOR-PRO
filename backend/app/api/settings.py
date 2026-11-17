@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+from datetime import datetime
 from pathlib import Path
 from xml.sax.saxutils import escape as xml_escape
 
@@ -11,6 +12,13 @@ from flask import Blueprint, Response, current_app, g, jsonify, request, send_fi
 from ..extensions import db
 from ..models import AuditAction, Setting
 from ..services.audit import log_action
+from ..services.backup import (
+    BACKUP_DEFAULTS,
+    create_backup,
+    delete_backup,
+    get_backup_config,
+    list_backups,
+)
 from ..utils.files import delete_attachment, save_attachment
 from ..utils.responses import error, json_body
 from ..utils.security import auth_required
@@ -56,6 +64,7 @@ DEFAULTS = {
     "app_name": "FACTOR PRO",
     "brand_logo_path": "",
     "brand_logo_name": "",
+    **BACKUP_DEFAULTS,
 }
 
 
@@ -288,3 +297,132 @@ def brand_manifest():
         mimetype="application/manifest+json",
         headers={"Cache-Control": "no-cache"},
     )
+
+
+# ---------------------------------------------------------------------------
+# Daily safety backup (Etapa 8)
+# ---------------------------------------------------------------------------
+
+def _backup_bool(value, field: str, errors: dict, default: bool = True) -> bool:
+    if value is None or value == "":
+        return default
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    errors[field] = "Informe um valor válido (sim ou não)."
+    return default
+
+
+@bp.get("/backup")
+@auth_required()
+def backup_status():
+    """Current backup preferences plus the stored backup files."""
+    return jsonify(
+        {
+            "settings": get_backup_config(),
+            "backups": list_backups(),
+            "scheduler_enabled": bool(current_app.config.get("BACKUP_SCHEDULER_ENABLED", True)),
+        }
+    )
+
+
+@bp.put("/backup")
+@auth_required(Role.ADMIN)
+def update_backup():
+    payload = json_body()
+    errors: dict[str, str] = {}
+
+    enabled = _backup_bool(payload.get("backup_enabled"), "backup_enabled", errors)
+    include_uploads = _backup_bool(
+        payload.get("backup_include_uploads"), "backup_include_uploads", errors
+    )
+
+    time_value = clean_text(payload.get("backup_time"), 5) or "03:00"
+    try:
+        hour, minute = (part.strip() for part in time_value.split(":", 1))
+        parsed_time = f"{int(hour):02d}:{int(minute):02d}"
+        if not (0 <= int(hour) <= 23 and 0 <= int(minute) <= 59):
+            raise ValueError("fora da faixa")
+    except (TypeError, ValueError):
+        errors["backup_time"] = "Informe um horário válido (HH:MM)."
+        parsed_time = "03:00"
+
+    try:
+        retention = int(payload.get("backup_retention_days", "7"))
+        if not 1 <= retention <= 365:
+            raise ValueError("fora da faixa")
+    except (TypeError, ValueError):
+        errors["backup_retention_days"] = "Informe de 1 a 365 dias."
+        retention = 7
+
+    if errors:
+        raise ValidationError(errors)
+
+    values = {
+        "backup_enabled": "true" if enabled else "false",
+        "backup_time": parsed_time,
+        "backup_retention_days": str(retention),
+        "backup_include_uploads": "true" if include_uploads else "false",
+    }
+    before = get_backup_config()
+    for key, value in values.items():
+        _set_setting(key, value)
+
+    changes = {key: [before.get(key), value] for key, value in values.items() if before.get(key) != value}
+    if changes:
+        log_action(AuditAction.UPDATE, "settings", None, "Backup diário configurado", changes)
+    db.session.commit()
+    return jsonify(
+        {
+            "settings": get_backup_config(),
+            "backups": list_backups(),
+            "message": "Configuração do backup salva com sucesso.",
+        }
+    )
+
+
+@bp.post("/backup/run")
+@auth_required(Role.ADMIN)
+def run_backup_now():
+    """Create a backup immediately, independent of the daily schedule."""
+    try:
+        result = create_backup()
+    except Exception as exc:  # pragma: no cover - depends on the database engine
+        current_app.logger.exception("Falha no backup manual")
+        return error(f"Não foi possível criar o backup: {exc}", 500)
+
+    _set_setting("backup_last_at", datetime.now().isoformat(timespec="seconds"))
+    _set_setting("backup_last_error", "")
+    log_action(AuditAction.CREATE, "backup", None, f"Backup manual criado: {result['name']}")
+    db.session.commit()
+    return jsonify(
+        {
+            "item": result,
+            "backups": list_backups(),
+            "message": "Backup criado com sucesso.",
+        }
+    )
+
+
+@bp.get("/backup/<name>/download")
+@auth_required(Role.ADMIN)
+def download_backup(name: str):
+    folder = Path(current_app.config["BACKUP_FOLDER"]).resolve()
+    candidate = (folder / name).resolve()
+    if candidate.parent != folder or not candidate.is_file() or candidate.suffix != ".zip":
+        return error("Backup não encontrado.", 404)
+    return send_file(candidate, as_attachment=True, download_name=name, max_age=0)
+
+
+@bp.delete("/backup/<name>")
+@auth_required(Role.ADMIN)
+def remove_backup(name: str):
+    if not delete_backup(name):
+        return error("Backup não encontrado.", 404)
+    log_action(AuditAction.DELETE, "backup", None, f"Backup removido: {name}")
+    db.session.commit()
+    return jsonify({"backups": list_backups(), "message": "Backup removido."})

@@ -4,13 +4,13 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapa 7 concluída** (Relatório Geral unificado com cheques, boletos e empréstimos; identidade visual personalizável — nome e logo do aplicativo — aplicada em todas as exportações). Escopo de sete etapas finalizado. Verificação: 128 pytest + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
+Última atualização: **Etapa 8 concluída** (exportação Excel em todas as listagens, backup diário configurável, atendente virtual por texto/voz, situação única no Relatório Geral e captura de várias fotos em cheques/boletos/recebimentos). Verificação: 141 pytest + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
 
 ---
 
 ## 1. Visão geral
 
-Sistema profissional de gestão de factoring. As **sete etapas** do escopo estão concluídas.
+Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas.
 
 | Etapa | Escopo | Situação |
 |-------|--------|----------|
@@ -21,6 +21,7 @@ Sistema profissional de gestão de factoring. As **sete etapas** do escopo estã
 | **5** | Experiência: filtros de relatório por usuário, code-splitting, revisão final | ✅ Concluída |
 | **6** | **Empréstimos**: parcelas, exposição, relatório, duplicata, e-mail/WhatsApp e selects com seta única | ✅ Concluída |
 | **7** | **Relatório Geral unificado** (cheques, boletos e empréstimos) e **identidade visual personalizável** (nome/ícone do app e logo real em todas as exportações) | ✅ Concluída |
+| **8** | **Excel nas listagens**, **backup diário**, **atendente virtual** (texto/voz), **situação única** no Relatório Geral e **múltiplas fotos** em cheques/boletos/recebimentos | ✅ Concluída |
 
 > **Novas etapas ou módulos só começam com autorização explícita do usuário.**
 > Módulos ainda não construídos exibem uma página informativa honesta
@@ -61,24 +62,24 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 FACTOR PRO/
 ├── AGENTS.md                  ← este arquivo (memória técnica)
 ├── README.md                  ← como instalar e rodar
-├── PROGRESSO.md               ← memo de retomada das etapas concluídas (até Etapa 7)
+├── PROGRESSO.md               ← memo de retomada das etapas concluídas (até Etapa 7; Etapa 8 neste arquivo)
 ├── .gitignore
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py        ← app factory, error handlers, headers, SPA fallback
 │   │   ├── config.py          ← Config/Development/Testing/Production
 │   │   ├── extensions.py      ← db, migrate, jwt, cors
-│   │   ├── cli.py             ← seed, seed-demo, reset-admin-password, create-db
+│   │   ├── cli.py             ← seed, seed-demo, reset-admin-password, create-db, backup
 │   │   ├── api/               ← blueprints REST
 │   │   │   ├── auth.py  users.py  clients.py  cheques.py  boletos.py
 │   │   │   ├── operations.py  receipts.py  reports.py  loans.py
-│   │   │   ├── dashboard.py  settings.py  documents_utils.py
-│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, document, audit, setting, reset_token, report_filter, base
-│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding
+│   │   │   ├── dashboard.py  settings.py  documents_utils.py  list_exports.py
+│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, document, document_attachment, audit, setting, reset_token, report_filter, base
+│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding, backup, list_exports
 │   │   └── utils/             ← validators, responses, security (throttling), files
-│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + 269e70536ab9_loans_and_installments.py
-│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans, etapa7)
-│   ├── instance/              ← factorpro.db + uploads/ (NÃO versionar)
+│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + 269e70536ab9_loans_and_installments.py + a7c4e1b9d2f3_document_attachments.py
+│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans, etapa7, backup, photos, list_exports)
+│   ├── instance/              ← factorpro.db + uploads/ + backups/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
 │   ├── src/
@@ -87,8 +88,8 @@ FACTOR PRO/
 │   │   ├── api/               ← client.js (axios + refresh), index.js (endpoints)
 │   │   ├── context/           ← AuthContext, ThemeContext, ToastContext, BrandContext
 │   │   ├── hooks/             ← useDebouncedValue, useInstallPrompt
-│   │   ├── components/        ← layout/, ui/, form/, documents/, Logo.jsx
-│   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Dashboard, Settings, Admin
+│   │   ├── components/        ← layout/ (AssistantWidget), ui/ (ExportXlsxButton, ProtectedImage), form/, documents/ (PhotoCapture), Logo.jsx
+│   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Dashboard, Settings (Backup diário), Admin
 │   │   └── utils/format.js
 │   ├── public/                ← manifest.webmanifest, sw.js, favicon.svg, icons/
 │   ├── dist/                  ← build servido pelo Flask (single deployment)
@@ -122,7 +123,10 @@ cd backend
 # Redefinir a senha do administrador (deixa must_change_password=True)
 .\.venv\Scripts\flask.exe reset-admin-password --email admin@factorpro.com.br --password Admin@12345
 
-# Testes (128 testes)
+# Criar um backup manual (o agendador diário roda sozinho com BACKUP_SCHEDULER_ENABLED=true)
+.\.venv\Scripts\flask.exe backup --now
+
+# Testes (141 testes)
 .\.venv\Scripts\python.exe -m pytest -q
 
 # Migrações
@@ -185,6 +189,10 @@ Variáveis em `backend/.env` (copiar de `.env.example`; **nunca versionar** `.en
 | `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_DEFAULT_SENDER` | vazio / vazio / FACTOR PRO `<no-reply@…>` | credenciais SMTP e remetente |
 | `MAIL_TIMEOUT_SECONDS` | 10 | tempo máximo de conexão SMTP |
 | `RATE_LIMIT_STORAGE_URL` | vazio (memória) | `redis://…` para throttling compartilhado entre instâncias |
+| `BACKUP_FOLDER` | `instance/backups` | pasta dos arquivos ZIP (não versionar) |
+| `BACKUP_SCHEDULER_ENABLED` | `true` | `false` em testes; preferências diárias ficam em `settings` |
+| `BACKUP_CHECK_INTERVAL_SECONDS` | `60` | frequência com que o agendador relê as preferências |
+| `BACKUP_PG_DUMP_PATH` / `BACKUP_PG_DUMP_TIMEOUT_SECONDS` | `pg_dump` / `120` | usado apenas quando `DATABASE_URL` é PostgreSQL |
 
 - Em `production`, `create_app()` **recusa** iniciar com SQLite, com `SECRET_KEY` de dev
   ou sem `MAIL_SERVER` configurado.
@@ -200,6 +208,10 @@ Variáveis em `backend/.env` (copiar de `.env.example`; **nunca versionar** `.en
 - **Relatório de empréstimos por e-mail**: usa a mesma configuração SMTP; os filtros
   vão na query string e o texto é editável. Sem `MAIL_SERVER`, a API responde
   `email_sent: false` com o texto para conferência (não revela dados do destinatário).
+- **Backup diário**: o agendador em `threading` lê as preferências de `settings` a cada
+  tick e cria um ZIP em `BACKUP_FOLDER` no horário escolhido. SQLite usa a API online
+  de backup; PostgreSQL usa `pg_dump`. A retenção remove apenas arquivos antigos;
+  backups manuais funcionam mesmo com o agendador desligado.
 
 ### Credenciais de desenvolvimento
 - **Administrador**: `admin@factorpro.com.br` / `Admin@12345`
@@ -222,10 +234,11 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `boletos` | code (`BOL-00001`), identifier, barcode, bank, client_id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment_* |
 | `operations` | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados |
 | `receipts` | code (`REC-00001`), document_kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment_* — baixa **manual** e auditada |
+| `document_attachments` | document_kind (`CHEQUE`/`BOLETO`/`RECEIPT`), document_id, path, name, size, content_type — **várias fotos** por documento, com soft delete; coluna legada `attachment_*` preservada |
 | `loans` | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete** |
 | `installments` | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição |
 | `audit_logs` | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at |
-| `settings` | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`) |
+| `settings` | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`) |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
 | `report_filters` | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos) |
 
@@ -261,14 +274,15 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | **auth** | `POST /login` `POST /refresh` `POST /logout` `GET /me` `POST /change-password` `POST /forgot-password` `POST /reset-password` |
 | **users** (ADMIN) | `GET/POST /` `PUT /<id>` `POST /<id>/reset-password` `GET /audit-logs` (filtros: entity, action, user_id, search, date_from, date_to) |
 | **clients** | `GET /` (search, status, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `DELETE /<id>` (ADMIN) |
-| **cheques** | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` |
+| **cheques** | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR) |
 | **boletos** | idem cheques |
 | **operations** | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) |
-| **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` |
+| **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR) |
 | **loans** | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email` |
 | **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind=CHEQUE\|BOLETO\|EMPRESTIMO, status, loan_status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
+| **list exports** | `GET /export/<resource>/xlsx` · `GET /export/resources` — resource: `clients`, `cheques`, `boletos`, `operations`, `receipts`, `loans` (todos os autenticados) e `users`, `audit` (ADMIN); mesmos filtros da listagem, sem paginação |
 | **dashboard** | `GET /summary` (filtros: date_from, date_to, client_id) |
-| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
+| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **backup**: `GET /backup` (todos) `PUT /backup` `POST /backup/run` `GET /backup/<name>/download` `DELETE /backup/<name>` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
 
 ### Convenções de payload
 - Valores monetários aceitam `"1.234,56"` ou `"1234.56"`; gravados exatos.
@@ -320,6 +334,26 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   `<img>`, favicon e manifest PWA não enviam Bearer — os dados completos da empresa
   continuam autenticados. O logo aparece em PDFs, XLSX, recibos e duplicatas; o nome
   exibido é o `app_name` personalizado (ou `company_name` quando não personalizado).
+- **Excel das listagens**: `GET /api/export/<resource>/xlsx` aplica os mesmos filtros
+  da tela (search, status, período etc.) e **ignora a paginação**. Cada recurso gera
+  uma aba estilizada com o nome/logo da marca, cabeçalho verde `#123D32`, moeda em
+  `R$`, filtro automático e linha congelada. O download usa blob autenticado e
+  registra `AuditAction.EXPORT` com entidade `<resource>_list`. Nenhum valor é
+  recalculado — apenas copiado como está gravado.
+- **Múltiplas fotos**: `POST /<id>/photos` recebe multipart `files` (ou `file` legado)
+  em png/jpg/jpeg/webp; cada arquivo é salvo como `DocumentAttachment` independente,
+  com limite individual de `MAX_UPLOAD_MB`. A listagem inclui o anexo legado como
+  primeiro item; `GET /<id>/photos/<attachment_id>` devolve a imagem por blob
+  autenticado e `DELETE` faz soft delete + auditoria. Coluna antiga `attachment_*`
+  continua funcionando para compatibilidade.
+- **Backup**: `GET /api/settings/backup` devolve `{settings, backups, scheduler_enabled}`;
+  `PUT` aceita `backup_enabled` (bool), `backup_time` (`HH:MM`), `backup_retention_days`
+  (1–90) e `backup_include_uploads` (bool). `POST /backup/run` cria um ZIP imediato;
+  `GET /backup/<name>/download` e `DELETE /backup/<name>` (ADMIN) operam sobre arquivos
+  dentro de `BACKUP_FOLDER`. O ZIP contém `database.sql`/`database.sqlite` (ou dump
+  `pg_dump` em PostgreSQL) e, opcionalmente, `uploads/`. O agendador em `threading`
+  relê as preferências a cada `BACKUP_CHECK_INTERVAL_SECONDS` e grava
+  `backup_last_at`/`backup_last_error` em `settings`.
 
 ---
 
@@ -331,8 +365,10 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   `bootstrapSession()` restaura a sessão silenciosamente ao carregar o app.
 - CSRF **não** se aplica: autenticação por header `Bearer` (cookie CSRF desabilitado).
 - Cabeçalhos de segurança em todas as respostas: `X-Content-Type-Options`,
-  `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`; `/api/*` com `no-store`.
-- Anexos acessados por **blob autenticado** (não há URL pública de arquivo).
+  `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`
+  (`microphone=(self)` para o atendente por voz; `camera=()` porque a captura usa
+  `<input type="file" capture="environment">`); `/api/*` com `no-store`.
+- Anexos e fotos acessados por **blob autenticado** (não há URL pública de arquivo).
 
 ### Papéis e permissões
 | Ação | ADMIN | OPERATOR | VIEWER |
@@ -341,6 +377,9 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | Criar/editar clientes, cheques, boletos, operações, recebimentos e **empréstimos**; alterar status | ✅ | ✅ | ❌ |
 | Excluir clientes/documentos/operações/**empréstimos** e estornar recebimentos (lógica) | ✅ | ❌ | ❌ |
 | Exportar relatórios (PDF/planilha), gerar mensagem de WhatsApp e **enviar relatório por e-mail** | ✅ | ✅ | ✅ |
+| Exportar **Excel das listagens** (exceto usuários/auditoria, ADMIN) | ✅ | ✅ | ✅ |
+| Enviar/remover **fotos extras** em cheques, boletos e recebimentos (leitura para VIEWER) | ✅ | ✅ | ❌ |
+| Ver status/configuração do backup (edição, execução, download e remoção só ADMIN) | ✅ | ✅ | ✅ |
 | Salvar/remover **os próprios** filtros de relatório | ✅ | ✅ | ✅ |
 | Administração (usuários + auditoria) | ✅ | ❌ | ❌ |
 | Configurações da empresa e **identidade visual** (nome/logo do app) — editar | ✅ | ❌ | ❌ |
@@ -379,15 +418,16 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
 - **Dashboard**: filtros em rascunho com botão **Aplicar** (presets aplicam na hora).
 - **Relatório Geral** (`/relatorios`): filtros em rascunho com **Aplicar**, presets de
-  período, tipo (**Cheques, Boletos, Empréstimos** — `kind`) e **duas situações
-  independentes** (“Situação do título” e “Situação do empréstimo”); 6 abas (Visão geral,
-  Clientes e limites, Títulos, **Empréstimos**, Operações, Recebimentos), paginação local
-  de 25 linhas, exportação por **blob autenticado** e modal de WhatsApp por cliente.
-  A aba Empréstimos traz cards, gráfico/sumário por situação, tabela de empréstimos e
-  de parcelas (clicáveis, levando ao detalhe). **Filtros salvos** ficam na conta do
-  usuário (API `/reports/filters`, até 20), disponíveis em qualquer dispositivo; o rótulo
-  da área é “Filtros salvos na sua conta”. Tabelas usam `.report-table` dentro de
-  `.fp-table-wrap`.
+  período, tipo (**Cheques, Boletos, Empréstimos** — `kind`) e **um único filtro
+  “Situação”** (`COMBINED_STATUS_OPTIONS`) que combina situações de título e de
+  empréstimo em `doc:<status>` / `loan:<status>`; a API continua recebendo `status` e
+  `loan_status` separados. 6 abas (Visão geral, Clientes e limites, Títulos,
+  **Empréstimos**, Operações, Recebimentos), paginação local de 25 linhas, exportação
+  por **blob autenticado** e modal de WhatsApp por cliente. A aba Empréstimos traz
+  cards, gráfico/sumário por situação, tabela de empréstimos e de parcelas (clicáveis,
+  levando ao detalhe). **Filtros salvos** ficam na conta do usuário (API
+  `/reports/filters`, até 20), disponíveis em qualquer dispositivo; o rótulo da área é
+  “Filtros salvos na sua conta”. Tabelas usam `.report-table` dentro de `.fp-table-wrap`.
 - **Empréstimos** (`/emprestimos`): formulário com busca automática do cliente
   (`ClientSelect`), valores informados (emprestado/recebido/lucro), parcelas geradas
   como **sugestão editável** (quantidade, 1º vencimento e periodicidade) e aviso de
@@ -411,6 +451,24 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   `/api/settings/brand/manifest.webmanifest` (nome/ícone dinâmicos) e o fallback
   offline é neutro; downloads por blob preferem o nome de arquivo enviado pelo
   servidor no `Content-Disposition` (slug da marca).
+- **Excel nas listagens**: `ExportXlsxButton` é compartilhado por Clientes, Cheques,
+  Boletos, Operações, Recebimentos, Empréstimos e Administração (usuários/auditoria).
+  Ele monta a query string com os filtros já aplicados na URL e baixa via blob
+  autenticado — sem nova dependência npm (`openpyxl` renderiza no backend).
+- **Múltiplas fotos**: `PhotoCapture` usa `<input type="file" accept="image/*"
+  capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
+  uma fila; o envio é sequencial para respeitar `MAX_CONTENT_LENGTH`. `ProtectedImage`
+  mostra a galeria por blob autenticado, com visualizar, baixar e remover. Integrado
+  em `DocumentDetailPage` (cheques/boletos) e `RecebimentoDetail`.
+- **Backup diário** (`/configuracoes`, aba “Backup diário”, ADMIN): status do
+  agendador, último backup/erro, horário, retenção (dias), inclusão de uploads,
+  botão “Criar backup agora” e lista com download/remoção. Preferências salvas via
+  `/api/settings/backup`; indicadores e botões seguem os tokens AA do tema.
+- **Atendente virtual**: `AssistantWidget` é um FAB disponível em todas as telas
+  autenticadas (`AppLayout`). Aceita texto e voz (Web Speech API, `pt-BR`, somente
+  Chrome/Edge), normaliza acentos/sinônimos e navega pelas rotas do menu lateral;
+  sugestões e histórico ficam no widget. Quando o reconhecimento de fala não está
+  disponível, o campo de texto continua funcional. O rodapé exibe **v1.6 · Etapa 8**.
 
 ---
 
@@ -418,7 +476,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 | Suíte | Comando | Resultado atual |
 |-------|---------|-----------------|
-| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **128 passed** |
+| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **141 passed** |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **101/101** |
 | Fluxos funcionais UI | `node scripts/browser_flows.mjs` | **37/37** |
 | Fluxo de empréstimos UI | `node scripts/browser_loans.mjs` | **23/23** |
@@ -443,7 +501,10 @@ produção, CRUD/limite/isolamento dos filtros salvos por usuário, o módulo de
 empréstimos (`tests/test_loans.py`: parcelas, limites, exposição, relatório, WhatsApp,
 e-mail e duplicata) e a Etapa 7 (`tests/test_etapa7.py`: filtro `EMPRESTIMO`/`loan_status`
 no Relatório Geral, resumo/cards/by_kind com empréstimos, PDF/XLSX com marca, endpoints
-públicos de branding, upload/remoção de logo e manifest dinâmico).
+públicos de branding, upload/remoção de logo e manifest dinâmico). A Etapa 8 acrescenta
+`tests/test_backup.py` (preferências, agendamento, manual, retenção, download e
+remoção), `tests/test_photos.py` (múltiplas fotos, isolamento por documento, blob e
+soft delete) e `tests/test_list_exports.py` (recursos, filtros, permissões e XLSX).
 
 > Os 422 **intencionais** (duplicidade e exclusão bloqueada) são erros esperados no
 > console do navegador e já são ignorados pelo `browser_flows.mjs`.
@@ -455,7 +516,7 @@ DOM/estilo computado; os screenshots ficam para conferência humana.
 
 ## 10. Estado atual, pendências e próximos passos
 
-**Todas as sete etapas planejadas estão entregues e verificadas.** O sistema roda em
+**Todas as oito etapas planejadas estão entregues e verificadas.** O sistema roda em
 desenvolvimento em `http://127.0.0.1:5000` (Flask servindo o build do SPA) e está pronto
 para uso; a lista abaixo registra o que foi entregue em cada etapa.
 
@@ -606,6 +667,37 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   smoke **101/101**, fluxos **37/37**, fluxo de empréstimos **23/23** via
   `node scripts/verify_all.mjs`.
 
+### Entregue na Etapa 8 ✅
+- **Excel em todas as listagens**: botão “Exportar Excel” em Clientes, Cheques,
+  Boletos, Operações, Recebimentos, Empréstimos, Usuários e Auditoria. Novo blueprint
+  `/api/export`, serviço `list_exports.py` (openpyxl) e componente `ExportXlsxButton`.
+  Os mesmos filtros da tela são aplicados sem paginação; a planilha usa o nome/logo da
+  marca, formatação de moeda/percentual, filtro automático e linha congelada. Cada
+  exportação registra `EXPORT` na auditoria.
+- **Backup diário**: modelo de preferências em `settings`, serviço `backup.py` com
+  agendador em `threading`, SQLite via API online / PostgreSQL via `pg_dump`, ZIP com
+  banco + uploads opcionais + `manifest.json`, retenção configurável e CLI
+  `flask backup --now`. A aba “Backup diário” em Configurações (ADMIN) mostra status,
+  permite salvar preferências, criar, baixar e remover backups. Novas variáveis
+  `BACKUP_*` em `config.py` e `.env.example`.
+- **Atendente virtual**: `AssistantWidget` com FAB, texto e voz (`pt-BR` via Web Speech
+  API), sugestões, histórico e comandos que abrem as páginas do menu lateral. A permissão
+  `microphone=(self)` foi adicionada ao `Permissions-Policy`; sem suporte a voz, o texto
+  continua funcional. Rodapé atualizado para **v1.6 · Etapa 8**.
+- **Situação única no Relatório Geral**: os dois selects (“Situação do título” e
+  “Situação do empréstimo”) foram mesclados em um único controle “Situação”, com valores
+  `doc:`/`loan:`; a API mantém `status` e `loan_status` separados, preservando filtros
+  salvos e exportações.
+- **Múltiplas fotos**: novo modelo `DocumentAttachment` e migração
+  `a7c4e1b9d2f3_document_attachments.py`. Em Cheques, Boletos e Recebimentos o painel
+  captura uma foto por vez (`capture="environment"`) e envia a fila sequencialmente;
+  galeria com visualização, download e remoção por blob autenticado. O anexo legado
+  continua aparecendo e os arquivos antigos seguem válidos.
+- **Verificação**: `tests/test_backup.py` (6), `tests/test_photos.py` (4) e
+  `tests/test_list_exports.py` (3) — suíte **141 passed**. `node scripts/verify_all.mjs`
+  → build OK, smoke **101/101**, fluxos **37/37**, fluxo de empréstimos **23/23**.
+  A migração `a7c4e1b9d2f3` foi aplicada no banco de desenvolvimento.
+
 ### Pendências conhecidas / observações
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
   credenciais no ambiente); a construção da mensagem, o caminho de envio e a tolerância
@@ -613,10 +705,10 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - Redis **não está em execução** localmente; o caminho Redis é exercitado por testes com
   um cliente simulado e o fallback em memória é o padrão em dev.
 - Repositório publicado no GitHub: `https://github.com/cspsistemasdigital-fish/CSP-FACTOR-PRO`
-  (branch `main`, já enviado via push; baseline da Etapa 6 em `04da5ec`).
-  O push usa Git Credential Manager; a conta
-  `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar como
-  `cspsistemasdigital-fish` (`git credential-manager github login`).
+  (branch `main`). A Etapa 7 está commitada localmente em `2bf6bf1` e a Etapa 8 no
+  topo de `main`; **ambos ainda aguardando push**. O push usa Git Credential Manager;
+  a conta `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar
+  como `cspsistemasdigital-fish` (`git credential-manager github login`).
 - Sem linter/formatter configurado no frontend (`npm run lint` é um placeholder).
 - WhatsApp: o sistema apenas **gera o texto revisável** e abre o `wa.me` — não há
   disparo automático nem armazenamento de conversas (decisão intencional).
@@ -628,12 +720,26 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   grava registro, e o navegador é responsável pela impressão/PDF.
 - A implantação em PostgreSQL/Alembic foi validada apenas no SQLite de desenvolvimento;
   rodar `flask db upgrade` no banco de produção antes do primeiro acesso
-  (inclui a migração `269e70536ab9_loans_and_installments.py`). A Etapa 7 não criou
-  migração: `app_name` e logo são chaves da tabela `settings` já existente.
+  (inclui `269e70536ab9_loans_and_installments.py` e
+  `a7c4e1b9d2f3_document_attachments.py`). A Etapa 7 não criou migração: `app_name` e
+  logo são chaves da tabela `settings` já existente.
 - Branding: o logo enviado vira favicon e ícone “any” do manifest; os ícones fixos
   `192/512` e `maskable` permanecem os do tema para garantir a instalação do PWA.
   Não há auditoria dedicada para troca de logo (o upload/remoção registra `UPDATE` em
   `settings`, como as demais configurações).
+- Backup: o caminho SQLite e o agendador são exercitados por testes; `pg_dump` e a
+  **restauração completa** ainda não foram validados contra PostgreSQL real nem com
+  um teste de restore ponta a ponta. Em instâncias múltiplas, cada processo executa
+  seu próprio agendador — use um único nó com `BACKUP_SCHEDULER_ENABLED=true`.
+- Atendente virtual: o reconhecimento de voz depende de Chrome/Edge e da permissão de
+  microfone, e não é coberto pelos scripts headless; o comando por texto e a navegação
+  pelas rotas do menu seguem o mesmo código e foram verificados na interface.
+- Múltiplas fotos: a captura real pela câmera (`capture="environment"`) depende do
+  dispositivo e não é exercitada pelos testes; o upload sequencial, a galeria protegida,
+  o isolamento por documento e o soft delete são cobertos por `tests/test_photos.py`.
+- Excel das listagens: a suíte de interface permanece com 101/101 porque não foram
+  adicionadas novas checagens de DOM; as rotas, permissões e o conteúdo do XLSX são
+  validados por `tests/test_list_exports.py`.
 
 ### Próximos passos recomendados (melhorias futuras, mediante autorização)
 1. **Validar SMTP real** com um provedor transacional (SPF/DKIM, bounce handling) e
@@ -650,6 +756,12 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
    de usuários justificar.
 7. **PDF da duplicata no servidor** (ReportLab), se houver necessidade de download
    além da impressão pelo navegador — decisão atual é não gravar nada.
+8. **Teste de restauração** periódico do ZIP (SQLite e `pg_dump`) em ambiente de
+   staging, com check de integridade e registro do resultado.
+9. **Checagens de UI para a Etapa 8** no smoke/fluxos (botões de Excel, aba de backup,
+   assistente por texto e fila de fotos), hoje cobertos apenas por testes de API.
+10. **Agendador de backup externo** (cron/Kubernetes CronJob) se a operação migrar
+   para múltiplas instâncias, evitando backups duplicados por processo.
 
 ---
 

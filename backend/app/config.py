@@ -57,6 +57,13 @@ class Config:
     MAX_CONTENT_LENGTH = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
     ALLOWED_UPLOAD_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "webp"}
 
+    # Daily safety backup (schedule itself is configurable in Settings)
+    BACKUP_FOLDER = os.getenv("BACKUP_FOLDER", "instance/backups")
+    BACKUP_SCHEDULER_ENABLED = _bool("BACKUP_SCHEDULER_ENABLED", True)
+    BACKUP_CHECK_INTERVAL_SECONDS = int(os.getenv("BACKUP_CHECK_INTERVAL_SECONDS", "60"))
+    BACKUP_PG_DUMP_PATH = os.getenv("BACKUP_PG_DUMP_PATH", "pg_dump")
+    BACKUP_PG_DUMP_TIMEOUT_SECONDS = int(os.getenv("BACKUP_PG_DUMP_TIMEOUT_SECONDS", "120"))
+
     # Password recovery
     EXPOSE_RESET_TOKEN = _bool("EXPOSE_RESET_TOKEN", True)
     RESET_TOKEN_MINUTES = 30
@@ -109,6 +116,7 @@ class TestingConfig(Config):
     EXPOSE_RESET_TOKEN = True
     PASSWORD_HASH_METHOD = "pbkdf2:sha256:1000"
     LOGIN_MAX_ATTEMPTS = 100
+    BACKUP_SCHEDULER_ENABLED = False
 
 
 class ProductionConfig(Config):

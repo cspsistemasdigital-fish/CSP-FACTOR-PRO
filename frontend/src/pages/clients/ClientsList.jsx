@@ -7,6 +7,7 @@ import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
+import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import EmptyState from '../../components/ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
@@ -91,6 +92,10 @@ export default function ClientsList() {
 
   const hasFilters = Boolean(search || status)
 
+  const exportParams = { sort, order }
+  if (search) exportParams.search = search
+  if (status) exportParams.status = status
+
   return (
     <div className="page">
       <PageHeader
@@ -98,6 +103,7 @@ export default function ClientsList() {
         subtitle="Cadastro de sacados e emitentes com limite operacional e exposição calculada a partir dos documentos em aberto."
         icon="bi-people-fill"
       >
+        <ExportXlsxButton resource="clients" params={exportParams} />
         {canWrite ? (
           <Link to="/clientes/novo" className="btn btn-primary">
             <i className="bi bi-person-plus" /> Novo cliente

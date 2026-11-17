@@ -67,6 +67,32 @@ const LOAN_STATUS_OPTIONS = [
   { value: 'CANCELADA', label: 'Cancelada' },
 ]
 
+// Etapa 8: a single dropdown carries both domains. The prefix is stripped
+// before the request, so the API still receives `status` and `loan_status`.
+const COMBINED_STATUS_OPTIONS = [
+  { value: '', label: 'Todas as situações' },
+  ...STATUS_OPTIONS.slice(1).map((option) => ({
+    value: `doc:${option.value}`,
+    label: `Título · ${option.label}`,
+  })),
+  ...LOAN_STATUS_OPTIONS.slice(1).map((option) => ({
+    value: `loan:${option.value}`,
+    label: `Empréstimo · ${option.label}`,
+  })),
+]
+
+function combinedStatusValue(filters) {
+  if (filters.status) return `doc:${filters.status}`
+  if (filters.loan_status) return `loan:${filters.loan_status}`
+  return ''
+}
+
+function changeCombinedStatus(draft, value) {
+  if (!value) return { ...draft, status: '', loan_status: '' }
+  if (value.startsWith('doc:')) return { ...draft, status: value.slice(4), loan_status: '' }
+  return { ...draft, status: '', loan_status: value.slice(5) }
+}
+
 const TABS = [
   { key: 'geral', label: 'Visão geral', icon: 'bi-grid-1x2' },
   { key: 'clientes', label: 'Clientes e limites', icon: 'bi-people' },
@@ -620,27 +646,14 @@ export default function Relatorios() {
             </select>
           </label>
           <label className="filter-select">
-            <span>Situação do título</span>
+            <span>Situação</span>
             <select
               className="form-select fp-input"
-              value={draft.status}
-              onChange={(event) => setDraft({ ...draft, status: event.target.value })}
+              value={combinedStatusValue(draft)}
+              onChange={(event) => setDraft(changeCombinedStatus(draft, event.target.value))}
+              aria-label="Situação do título ou do empréstimo"
             >
-              {STATUS_OPTIONS.map((option) => (
-                <option key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="filter-select">
-            <span>Situação do empréstimo</span>
-            <select
-              className="form-select fp-input"
-              value={draft.loan_status}
-              onChange={(event) => setDraft({ ...draft, loan_status: event.target.value })}
-            >
-              {LOAN_STATUS_OPTIONS.map((option) => (
+              {COMBINED_STATUS_OPTIONS.map((option) => (
                 <option key={option.value || 'all'} value={option.value}>
                   {option.label}
                 </option>

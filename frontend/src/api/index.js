@@ -43,6 +43,16 @@ function documentApi(base) {
     },
     attachmentUrl: (id) => `${base}/${id}/attachment`,
     removeAttachment: (id) => api.delete(`${base}/${id}/attachment`),
+    photos: (id) => api.get(`${base}/${id}/photos`),
+    uploadPhotos: (id, files) => {
+      const form = new FormData()
+      files.forEach((file) => form.append('files', file))
+      return api.post(`${base}/${id}/photos`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+    photoUrl: (id, photoId) => `${base}/${id}/photos/${photoId}`,
+    removePhoto: (id, photoId) => api.delete(`${base}/${id}/photos/${photoId}`),
   }
 }
 
@@ -103,6 +113,16 @@ export const receiptsApi = {
   },
   attachmentUrl: (id) => `/receipts/${id}/attachment`,
   removeAttachment: (id) => api.delete(`/receipts/${id}/attachment`),
+  photos: (id) => api.get(`/receipts/${id}/photos`),
+  uploadPhotos: (id, files) => {
+    const form = new FormData()
+    files.forEach((file) => form.append('files', file))
+    return api.post(`/receipts/${id}/photos`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  photoUrl: (id, photoId) => `/receipts/${id}/photos/${photoId}`,
+  removePhoto: (id, photoId) => api.delete(`/receipts/${id}/photos/${photoId}`),
 }
 
 export const usersApi = {
@@ -125,6 +145,12 @@ export const settingsApi = {
     })
   },
   removeLogo: () => api.delete('/settings/company/logo'),
+  backupStatus: () => api.get('/settings/backup'),
+  saveBackup: (payload) => api.put('/settings/backup', payload),
+  runBackup: () => api.post('/settings/backup/run'),
+  downloadBackup: (name) =>
+    downloadProtectedFile(`/settings/backup/${encodeURIComponent(name)}/download`, name),
+  deleteBackup: (name) => api.delete(`/settings/backup/${encodeURIComponent(name)}`),
 }
 
 export const reportsApi = {
@@ -138,6 +164,12 @@ export const reportsApi = {
   filters: () => api.get('/reports/filters'),
   saveFilter: (payload) => api.post('/reports/filters', payload),
   removeFilter: (id) => api.delete(`/reports/filters/${id}`),
+}
+
+/** Export the saved records of a list (same filters, no pagination). */
+export const listExportApi = {
+  exportXlsx: (resource, params) =>
+    downloadProtectedFile(`/export/${resource}/xlsx`, `${resource}-factor-pro.xlsx`, params),
 }
 
 function exportFilename(extension) {

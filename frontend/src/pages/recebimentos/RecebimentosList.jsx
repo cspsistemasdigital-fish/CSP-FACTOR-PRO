@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
+import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import EmptyState from '../../components/ui/EmptyState'
 import ClientSelect from '../../components/form/ClientSelect'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
@@ -110,6 +111,11 @@ export default function RecebimentosList() {
   const hasFilters = Boolean(search || kind || clientId || activeAdvanced)
   const selectedClientId = clientId ? Number(clientId) : null
 
+  const exportParams = { sort, order }
+  ;['search', 'document_kind', 'client_id', 'date_from', 'date_to'].forEach((key) => {
+    if (get(key)) exportParams[key] = get(key)
+  })
+
   return (
     <div className="page">
       <PageHeader
@@ -117,6 +123,7 @@ export default function RecebimentosList() {
         subtitle="Cada recebimento é uma baixa manual: você informa a data e o valor recebido. O sistema nunca calcula encargos — apenas compara com o saldo em aberto."
         icon="bi-cash-coin"
       >
+        <ExportXlsxButton resource="receipts" params={exportParams} />
         <button type="button" className="btn btn-light" onClick={load} disabled={loading}>
           <i className={`bi ${loading ? 'arrow-repeat spin' : 'arrow-clockwise'}`} /> Atualizar
         </button>

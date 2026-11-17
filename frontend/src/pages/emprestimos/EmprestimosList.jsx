@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
+import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import EmptyState from '../../components/ui/EmptyState'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ClientSelect from '../../components/form/ClientSelect'
@@ -105,6 +106,11 @@ export default function EmprestimosList() {
   const advancedCount = ['date_from', 'date_to'].filter((key) => get(key)).length
   const hasFilters = Boolean(search || status || clientId || advancedCount)
 
+  const exportParams = { sort, order }
+  ;['search', 'status', 'client_id', 'date_from', 'date_to'].forEach((key) => {
+    if (get(key)) exportParams[key] = get(key)
+  })
+
   return (
     <div className="page">
       <PageHeader
@@ -112,6 +118,7 @@ export default function EmprestimosList() {
         subtitle="Valores informados manualmente, parcelas editáveis e limite do cliente atualizado pelas parcelas em aberto. Nada é recalculado pelo sistema."
         icon="bi-cash-coin"
       >
+        <ExportXlsxButton resource="loans" params={exportParams} />
         <button type="button" className="btn btn-light" onClick={load} disabled={loading}>
           <i className={`bi ${loading ? 'arrow-repeat spin' : 'arrow-clockwise'}`} /> Atualizar
         </button>

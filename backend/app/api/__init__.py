@@ -4,6 +4,7 @@ from .boletos import bp as boletos_bp
 from .cheques import bp as cheques_bp
 from .clients import bp as clients_bp
 from .dashboard import bp as dashboard_bp
+from .list_exports import bp as list_exports_bp
 from .loans import bp as loans_bp
 from .operations import bp as operations_bp
 from .receipts import bp as receipts_bp
@@ -24,6 +25,7 @@ def register_blueprints(app):
         receipts_bp,
         reports_bp,
         dashboard_bp,
+        list_exports_bp,
         settings_bp,
     ):
         app.register_blueprint(blueprint)

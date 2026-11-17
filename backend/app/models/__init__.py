@@ -11,6 +11,7 @@ from .document import (  # noqa: F401
     DocumentStatus,
     is_overdue,
 )
+from .document_attachment import DocumentAttachment  # noqa: F401
 from .installment import Installment  # noqa: F401
 from .loan import Loan, LoanStatus  # noqa: F401
 from .operation import Operation, OperationStatus  # noqa: F401
@@ -27,6 +28,7 @@ __all__ = [
     "Cheque",
     "Client",
     "ClientStatus",
+    "DocumentAttachment",
     "DocumentKind",
     "DocumentStatus",
     "Installment",

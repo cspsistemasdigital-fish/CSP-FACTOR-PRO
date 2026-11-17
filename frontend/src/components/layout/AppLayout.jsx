@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import AssistantWidget from './AssistantWidget'
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(
@@ -48,6 +49,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <AssistantWidget />
     </div>
   )
 }
