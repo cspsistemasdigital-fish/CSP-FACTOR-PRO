@@ -1,0 +1,425 @@
+/* ---------------------------------------------------------------------------
+   Etapa 6 — Empréstimos (lista, formulário, detalhe, duplicata e relatório)
+--------------------------------------------------------------------------- */
+
+/* Lista ------------------------------------------------------------------ */
+.loan-card-values {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--fp-border, #e2eae6);
+}
+
+.loan-card-values span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.72rem;
+  color: var(--fp-text-muted, #6b7b74);
+}
+
+.loan-card-values strong {
+  font-size: 0.9rem;
+  color: var(--fp-text, #253a33);
+}
+
+/* Formulário ------------------------------------------------------------- */
+.loan-limit-box {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--fp-border, #e2eae6);
+  border-radius: 10px;
+  background: var(--fp-surface-2, #f7faf9);
+}
+
+.loan-limit-box > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.loan-limit-box span {
+  font-size: 0.75rem;
+  color: var(--fp-text-muted, #6b7b74);
+}
+
+.loan-limit-box strong {
+  font-size: 1rem;
+  color: var(--fp-text, #253a33);
+}
+
+.loan-installment-config {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--fp-border, #e2eae6);
+  border-radius: 10px;
+  background: var(--fp-surface-2, #f7faf9);
+}
+
+.loan-installments-table {
+  margin-bottom: 12px;
+}
+
+.loan-installments-table th,
+.loan-installments-table td {
+  vertical-align: middle;
+}
+
+.loan-installments-table .fp-field-error {
+  font-size: 0.7rem;
+}
+
+.loan-conference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--fp-green, #16845b);
+  border-radius: 6px;
+  background: var(--fp-surface-2, #f7faf9);
+  font-size: 0.82rem;
+  color: var(--fp-text-muted, #5b6b64);
+}
+
+.loan-conference > span:first-child {
+  width: 100%;
+  font-weight: 600;
+  color: var(--fp-text, #253a33);
+}
+
+/* Relatório -------------------------------------------------------------- */
+.report-print-only {
+  display: none;
+}
+
+.report-share-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 18px 0 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--fp-border, #e2eae6);
+  border-radius: 12px;
+  background: var(--fp-surface, #fff);
+}
+
+.report-share-bar > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
+.report-share-bar > div:first-child i {
+  color: var(--fp-green, #16845b);
+  font-size: 1.2rem;
+}
+
+.report-share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wa-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--fp-surface-2, #f7faf9);
+  font-size: 0.85rem;
+}
+
+.wa-summary span {
+  color: var(--fp-text-muted, #6b7b74);
+}
+
+.wa-summary strong {
+  color: var(--fp-text, #253a33);
+  margin-left: 4px;
+}
+
+/* Duplicata — tela -------------------------------------------------------- */
+.loan-print-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.print-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.loan-print-sheet {
+  padding: 22px 26px;
+  border: 1px solid #d7e2dd;
+  border-radius: 12px;
+  background: #fff;
+  color: #182722;
+  box-shadow: 0 10px 30px rgba(18, 61, 50, 0.08);
+}
+
+.loan-print-company {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid #123d32;
+}
+
+.loan-print-company > div {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.8rem;
+  color: #4c6058;
+}
+
+.loan-print-company strong {
+  font-size: 1.05rem;
+  color: #123d32;
+}
+
+.loan-print-title {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 24px 0 18px;
+}
+
+.loan-print-title span {
+  display: block;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #5a6b64;
+}
+
+.loan-print-title h1 {
+  margin: 2px 0 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: #123d32;
+}
+
+.loan-print-number {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.loan-print-number strong {
+  font-size: 1.15rem;
+  color: #173b57;
+}
+
+.loan-print-number small {
+  color: #5a6b64;
+}
+
+.loan-print-parties {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.loan-print-parties > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 14px;
+  border: 1px solid #d7e2dd;
+  border-radius: 8px;
+  background: #f7faf9;
+  font-size: 0.85rem;
+}
+
+.loan-print-parties h2,
+.loan-print-schedule h2,
+.loan-print-notes h2 {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #123d32;
+}
+
+.loan-print-parties strong {
+  font-size: 1rem;
+  color: #172a24;
+}
+
+.loan-print-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 10px !important;
+  margin-bottom: 18px;
+}
+
+.loan-print-metrics .print-metric {
+  border: 1px solid #d7e2dd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #f7faf9;
+  font-size: 0.78rem;
+  color: #5a6b64;
+}
+
+.loan-print-metrics .print-metric strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.06rem;
+  color: #123d32;
+}
+
+.loan-print-schedule,
+.loan-print-notes {
+  margin-bottom: 18px;
+}
+
+.loan-print-schedule .print-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.loan-print-schedule .print-table th,
+.loan-print-schedule .print-table td {
+  border: 1px solid #d7e2dd;
+  padding: 7px 8px;
+  text-align: left;
+}
+
+.loan-print-schedule .print-table th {
+  background: #e8f3ed;
+  color: #123d32;
+}
+
+.loan-print-notes p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid #d7e2dd;
+  border-radius: 8px;
+  background: #f7faf9;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.loan-print-statement {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: #5a6b64;
+}
+
+.loan-print-sign {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  margin-top: 36px;
+}
+
+.loan-print-sign > div {
+  border-top: 1px solid #6b7b74;
+  padding-top: 6px;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+
+.loan-print-sign small {
+  color: #5a6b64;
+}
+
+.loan-print-footer-note {
+  margin-top: 18px;
+  font-size: 0.8rem;
+  color: #5a6b64;
+  white-space: pre-wrap;
+}
+
+.loan-print-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+  padding-top: 10px;
+  border-top: 1px solid #d7e2dd;
+  font-size: 0.75rem;
+  color: #5a6b64;
+}
+
+.loan-print-page-sheet + .loan-print-page-sheet {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px dashed #b9c8c1;
+}
+
+@media (max-width: 767px) {
+  .loan-limit-box,
+  .loan-installment-config,
+  .loan-card-values,
+  .loan-print-parties,
+  .loan-print-sign {
+    grid-template-columns: 1fr;
+  }
+
+  .loan-print-metrics {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .loan-print-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .loan-print-number {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+
+@media print {
+  .report-print-only {
+    display: block !important;
+  }
+
+  .report-print-only .print-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .report-print-only .print-section h2 {
+    margin: 10px 0 6px;
+    font-size: 11pt;
+    color: #123d32;
+  }
+
+  .report-print-only .loan-print-foot {
+    margin-top: 10mm;
+  }
+}

@@ -59,6 +59,33 @@ export const operationsApi = {
   remove: (id) => api.delete(`/operations/${id}`),
 }
 
+export const loansApi = {
+  list: (params) => api.get('/loans', { params }),
+  get: (id) => api.get(`/loans/${id}`),
+  duplicata: (id) => api.get(`/loans/${id}/duplicata`),
+  create: (payload) => api.post('/loans', payload),
+  update: (id, payload) => api.put(`/loans/${id}`, payload),
+  changeStatus: (id, status) => api.patch(`/loans/${id}/status`, { status }),
+  changeInstallmentStatus: (id, installmentId, status) =>
+    api.patch(`/loans/${id}/installments/${installmentId}/status`, { status }),
+  remove: (id) => api.delete(`/loans/${id}`),
+  report: (params) => api.get('/loans/report/summary', { params }),
+  whatsapp: (clientId, params) =>
+    api.get('/loans/report/whatsapp', { params: { ...params, client_id: clientId } }),
+  sendEmail: (payload, params) => api.post('/loans/report/email', payload, { params }),
+  exportPdf: (params) =>
+    downloadProtectedFile('/loans/report/export/pdf', loanExportFilename('pdf'), params),
+  exportXlsx: (params) =>
+    downloadProtectedFile('/loans/report/export/xlsx', loanExportFilename('xlsx'), params),
+}
+
+function loanExportFilename(extension) {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
+  return `emprestimos-factor-pro-${stamp}.${extension}`
+}
+
 export const receiptsApi = {
   list: (params) => api.get('/receipts', { params }),
   openDocuments: (params) => api.get('/receipts/open-documents', { params }),

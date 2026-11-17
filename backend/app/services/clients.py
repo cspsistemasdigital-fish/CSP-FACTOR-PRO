@@ -15,6 +15,9 @@ from ..models import (
     Client,
     ClientStatus,
     DocumentStatus,
+    Installment,
+    Loan,
+    LoanStatus,
     Operation,
     Receipt,
     Role,
@@ -189,6 +192,16 @@ def delete_client(client: Client, user) -> None:
                 )
             }
         )
+    active_loans = client.loans.filter_by(is_deleted=False).count()
+    if active_loans:
+        raise ValidationError(
+            {
+                "client": (
+                    f"Não é possível excluir: existem {active_loans} empréstimo(s) vinculado(s) "
+                    "a este cliente."
+                )
+            }
+        )
     client.soft_delete(user.id)
     log_action(
         AuditAction.DELETE,
@@ -252,6 +265,45 @@ def _exposure_map(client_ids: list[int]) -> dict[int, dict]:
         for client_id, total, count in overdue_rows:
             result[client_id]["overdue_amount"] += Decimal(total or 0)
             result[client_id]["overdue_documents"] += count
+
+    # Empréstimos também consomem limite: as parcelas em aberto entram na mesma
+    # exposição usada por clientes, relatórios e dashboard.
+    loan_filters = (
+        Loan.client_id.in_(client_ids),
+        Loan.is_deleted.is_(False),
+        Loan.status != LoanStatus.CANCELLED,
+        Installment.is_deleted.is_(False),
+        Installment.status.in_(DocumentStatus.PENDING),
+    )
+    loan_rows = (
+        db.session.query(
+            Loan.client_id,
+            func.coalesce(func.sum(Installment.amount), 0),
+            func.count(Installment.id),
+        )
+        .join(Installment, Installment.loan_id == Loan.id)
+        .filter(*loan_filters)
+        .group_by(Loan.client_id)
+        .all()
+    )
+    for client_id, total, count in loan_rows:
+        result[client_id]["open_amount"] += Decimal(total or 0)
+        result[client_id]["open_documents"] += count
+
+    loan_overdue_rows = (
+        db.session.query(
+            Loan.client_id,
+            func.coalesce(func.sum(Installment.amount), 0),
+            func.count(Installment.id),
+        )
+        .join(Installment, Installment.loan_id == Loan.id)
+        .filter(*loan_filters, Installment.due_date < today)
+        .group_by(Loan.client_id)
+        .all()
+    )
+    for client_id, total, count in loan_overdue_rows:
+        result[client_id]["overdue_amount"] += Decimal(total or 0)
+        result[client_id]["overdue_documents"] += count
 
     return result
 

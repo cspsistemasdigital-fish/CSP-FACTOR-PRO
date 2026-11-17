@@ -22,6 +22,8 @@ const NAV_SECTIONS = [
     items: [
       { to: '/operacoes', label: 'Operações', icon: 'bi-arrow-left-right' },
       { to: '/recebimentos', label: 'Recebimentos', icon: 'bi-cash-coin' },
+      { to: '/emprestimos', label: 'Empréstimos', icon: 'bi-cash-stack' },
+      { to: '/emprestimos/relatorio', label: 'Rel. Empréstimos', icon: 'bi-bar-chart-line' },
       { to: '/relatorios', label: 'Relatórios', icon: 'bi-graph-up-arrow' },
     ],
   },
@@ -123,7 +125,7 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate }) {
         {!collapsed && (
           <div className="sidebar-version">
             <span>FACTOR PRO</span>
-            <span>v1.3 · Etapa 3</span>
+            <span>v1.4 · Etapa 6</span>
           </div>
         )}
       </div>

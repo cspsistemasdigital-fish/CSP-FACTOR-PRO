@@ -1,18 +1,21 @@
 # FACTOR PRO — Gestão Financeira Inteligente
 
-Sistema profissional de gestão de **factoring**: cadastro de clientes, cheques e
-boletos, com controle de limites, alertas de vencimento e divergência de valores,
-auditoria completa e interface PWA responsiva (temas claro e escuro).
+Sistema profissional de gestão de **factoring**: cadastro de clientes, cheques,
+boletos e **empréstimos com parcelas**, com controle de limites, alertas de
+vencimento e divergência de valores, auditoria completa e interface PWA responsiva
+(temas claro e escuro).
 
 > **Regra soberana:** o sistema **nunca** calcula juros, descontos, taxas ou encargos.
 > Todo valor é informado pelo usuário e gravado exatamente como digitado. O sistema
 > apenas **compara** valores e exibe **alertas** (divergência, vencimento, limite).
 
-Este repositório entrega as **cinco etapas** do escopo: estrutura, banco,
+Este repositório entrega as **seis etapas** do escopo: estrutura, banco,
 autenticação, clientes, cheques e boletos (Etapa 1); operações, recebimentos e recibos
 (Etapa 2); relatórios, exportações PDF/planilha, WhatsApp e dashboard completo (Etapa 3);
 produção com e-mail de recuperação e throttling distribuído (Etapa 4); filtros de
-relatório por usuário e carregamento otimizado do SPA (Etapa 5).
+relatório por usuário e carregamento otimizado do SPA (Etapa 5); **módulo de
+empréstimos** com parcelas editáveis, exposição do cliente, relatório dedicado,
+duplicata para impressão e correção das setas dos selects (Etapa 6).
 
 ---
 
@@ -76,18 +79,40 @@ npm run build
 
 ---
 
+## Empréstimos (Etapa 6)
+
+- Menu **Financeiro → Empréstimos** e **Rel. Empréstimos**.
+- Cadastro com busca do cliente pelo próprio cadastro, limite/exposição projetados,
+  valor emprestado, valor recebido e **lucro informado** (nunca calculado).
+- Parcelas e vencimentos gerados por quantidade/1º vencimento/periodicidade e
+  **editáveis um a um** antes de salvar; situação de cada parcela alterável depois.
+- O saldo em parcelas em aberto entra na **exposição do cliente**; estourar o limite
+  apenas avisa.
+- Relatório com cards, gráficos, abas (Visão geral, Clientes e limites, Empréstimos,
+  Parcelas), filtros, exportações **PDF/XLSX**, mensagem de **WhatsApp** editável,
+  **e-mail** com filtros aplicados e visão de **impressão profissional** com quebras
+  de página.
+- **Duplicata** em `/emprestimos/:id/duplicata`: documento para impressão com dados
+  do cliente e da empresa, sem criar registro novo.
+- API: `/api/loans` (CRUD, status e parcelas), `/api/loans/report/summary`,
+  `/api/loans/report/export/pdf|xlsx`, `/api/loans/report/whatsapp`,
+  `/api/loans/report/email` e `/api/loans/<id>/duplicata`.
+
+---
+
 ## Testes
 
 ```powershell
-# Backend — 112 testes
+# Backend — 121 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
-# Interface — smoke + acessibilidade (89 checagens) e fluxos (37 checagens)
+# Interface — smoke + acessibilidade (101), fluxos (37) e empréstimos (23)
 # Requer o backend no ar em http://127.0.0.1:5000 e o Chrome instalado.
 node scripts/browser_smoke.mjs
 node scripts/browser_flows.mjs
+node scripts/browser_loans.mjs
 
-# Tudo de uma vez: pytest + build + smoke + fluxos
+# Tudo de uma vez: pytest + build + smoke + fluxos + empréstimos
 node scripts/verify_all.mjs
 ```
 
@@ -101,7 +126,7 @@ administrador ao final. Screenshots em `scripts/screenshots/`.
 ```
 backend/    API Flask (app factory, blueprints, models, services, migrations, tests)
 frontend/   SPA React (pages, components, contexts, PWA) + build em dist/
-scripts/    Verificação headless (CDP): smoke, fluxos e geração de ícones
+scripts/    Verificação headless (CDP): smoke, fluxos, empréstimos e ícones
 AGENTS.md   Memória técnica do projeto (leia antes de contribuir)
 ```
 
@@ -112,7 +137,8 @@ AGENTS.md   Memória técnica do projeto (leia antes de contribuir)
 1. Configure `backend/.env` com `FLASK_ENV=production`, `DATABASE_URL` PostgreSQL,
    `SECRET_KEY`/`JWT_SECRET_KEY` fortes, `FRONTEND_BASE_URL` público e o SMTP
    (`MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`, `MAIL_PASSWORD`,
-   `MAIL_DEFAULT_SENDER`) para a recuperação de senha por e-mail.
+   `MAIL_DEFAULT_SENDER`) para a recuperação de senha e o envio do relatório de
+   empréstimos por e-mail.
 2. Opcional: `RATE_LIMIT_STORAGE_URL=redis://...` para throttling de login compartilhado
    entre instâncias (sem Redis, usa memória com fallback automático).
 3. `flask db upgrade` para aplicar as migrações.

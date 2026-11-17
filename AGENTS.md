@@ -4,13 +4,13 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapas 4 e 5 concluídas** (produção: e-mail de recuperação, throttling com Redis e verificação completa; experiência: filtros de relatório por usuário, code-splitting e revisão final). Escopo de cinco etapas finalizado.
+Última atualização: **Etapa 6 concluída** (módulo de Empréstimos com parcelas, limite, relatório, duplicata para impressão, WhatsApp/e-mail e correção das setas dos selects). Escopo de seis etapas finalizado. Verificação: 121 pytest + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
 
 ---
 
 ## 1. Visão geral
 
-Sistema profissional de gestão de factoring. As **cinco etapas** do escopo estão concluídas.
+Sistema profissional de gestão de factoring. As **seis etapas** do escopo estão concluídas.
 
 | Etapa | Escopo | Situação |
 |-------|--------|----------|
@@ -19,6 +19,7 @@ Sistema profissional de gestão de factoring. As **cinco etapas** do escopo est�
 | **3** | Dashboard completo, **Relatórios**, exportações (PDF/planilha), WhatsApp | ✅ Concluída |
 | **4** | Produção: e-mail de recuperação, throttling com Redis, verificação completa | ✅ Concluída |
 | **5** | Experiência: filtros de relatório por usuário, code-splitting, revisão final | ✅ Concluída |
+| **6** | **Empréstimos**: parcelas, exposição, relatório, duplicata, e-mail/WhatsApp e selects com seta única | ✅ Concluída |
 
 > **Novas etapas ou módulos só começam com autorização explícita do usuário.**
 > Módulos ainda não construídos exibem uma página informativa honesta
@@ -36,8 +37,12 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 - **Vencido**: `due_date < hoje` e status em `EM_ABERTO`/`DEVOLVIDO`. Apenas alerta —
   o sistema não altera status sozinho.
 - **Limite disponível** = `limite operacional − exposição em aberto`
-  (soma de `net_amount` com status `EM_ABERTO`/`DEVOLVIDO`). É derivado, não armazenado.
+  (soma de `net_amount` de cheques/boletos com status `EM_ABERTO`/`DEVOLVIDO`
+  **mais o saldo das parcelas de empréstimos em aberto**). É derivado, não armazenado.
   Ultrapassar o limite é **aviso**, não bloqueio.
+- **Empréstimos**: valor emprestado, recebido e lucro são informados e gravados
+  exatamente como digitados. Parcelas são uma **sugestão editável** de divisão do
+  principal — nunca há cálculo de juros, taxas ou encargos.
 
 ---
 
@@ -55,6 +60,7 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 FACTOR PRO/
 ├── AGENTS.md                  ← este arquivo (memória técnica)
 ├── README.md                  ← como instalar e rodar
+├── PROGRESSO.md               ← memo de retomada da Etapa 6 (concluída)
 ├── .gitignore
 ├── backend/
 │   ├── app/
@@ -64,33 +70,34 @@ FACTOR PRO/
 │   │   ├── cli.py             ← seed, seed-demo, reset-admin-password, create-db
 │   │   ├── api/               ← blueprints REST
 │   │   │   ├── auth.py  users.py  clients.py  cheques.py  boletos.py
-│   │   │   ├── operations.py  receipts.py  reports.py
+│   │   │   ├── operations.py  receipts.py  reports.py  loans.py
 │   │   │   ├── dashboard.py  settings.py  documents_utils.py
-│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, document, audit, setting, reset_token, report_filter, base
-│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email
+│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, document, audit, setting, reset_token, report_filter, base
+│   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report
 │   │   └── utils/             ← validators, responses, security (throttling), files
-│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py
-│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production)
+│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + 269e70536ab9_loans_and_installments.py
+│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans)
 │   ├── instance/              ← factorpro.db + uploads/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx            ← árvore de rotas + guardas (páginas com React.lazy)
-│   │   ├── main.jsx  styles/app.css
+│   │   ├── main.jsx  styles/app.css  styles/emprestimos.css
 │   │   ├── api/               ← client.js (axios + refresh), index.js (endpoints)
 │   │   ├── context/           ← AuthContext, ThemeContext, ToastContext
 │   │   ├── hooks/             ← useDebouncedValue, useInstallPrompt
 │   │   ├── components/        ← layout/, ui/, form/, documents/, Logo.jsx
-│   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, Dashboard, Settings, Admin
+│   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Dashboard, Settings, Admin
 │   │   └── utils/format.js
 │   ├── public/                ← manifest.webmanifest, sw.js, favicon.svg, icons/
 │   ├── dist/                  ← build servido pelo Flask (single deployment)
 │   ├── package.json  vite.config.js  index.html
 └── scripts/
     ├── lib/cdp.mjs            ← cliente Chrome DevTools Protocol (sem dependências)
-    ├── browser_smoke.mjs      ← smoke + auditoria de acessibilidade (89 checagens)
+    ├── browser_smoke.mjs      ← smoke + auditoria de acessibilidade (101 checagens)
     ├── browser_flows.mjs      ← teste funcional de ponta a ponta (37 checagens)
-    ├── verify_all.mjs         ← pytest + build + smoke + fluxos (código de saída para CI)
+    ├── browser_loans.mjs      ← fluxo de empréstimos (23 checagens, auto-limpante)
+    ├── verify_all.mjs         ← pytest + build + smoke + fluxos + empréstimos (CI)
     ├── generate_icons.py
     ├── screenshots/  smoke-output.txt  flows-output.txt
 ```
@@ -114,7 +121,7 @@ cd backend
 # Redefinir a senha do administrador (deixa must_change_password=True)
 .\.venv\Scripts\flask.exe reset-admin-password --email admin@factorpro.com.br --password Admin@12345
 
-# Testes (112 testes)
+# Testes (121 testes)
 .\.venv\Scripts\python.exe -m pytest -q
 
 # Migrações
@@ -129,7 +136,7 @@ cd frontend
 npm install
 npm run dev      # Vite em http://localhost:5173 (proxy /api -> 127.0.0.1:5000)
 npm run build    # gera dist/ servido pelo Flask
-npm run verify   # pytest + build + smoke + fluxos (backend precisa estar no ar)
+npm run verify   # pytest + build + smoke + fluxos + empréstimos (backend no ar)
 ```
 
 ### Verificação de interface (headless Chrome via CDP)
@@ -138,18 +145,24 @@ Requer backend no ar em `http://127.0.0.1:5000`, Chrome em
 `C:\Program Files\Google\Chrome\Application\chrome.exe` e Node v22 (WebSocket global).
 
 ```powershell
-node scripts/browser_smoke.mjs   # 89/89 — telas, temas, responsivo, acessibilidade
+node scripts/browser_smoke.mjs   # 101/101 — telas, temas, responsivo, AA e seta única dos selects
 node scripts/browser_flows.mjs   # 37/37 — CRUD real, divergência, auditoria, relatórios, filtros salvos e exportações
+node scripts/browser_loans.mjs   # 23/23 — empréstimos: parcelas, limite, duplicata, relatório e exportações
 ```
 
-Ambos são **auto-limpantes**: os fluxos criam e removem os próprios dados
-(marcador `FLUXO-UI-TESTE`, cliente `Cliente Teste Fluxo UI`), removem o filtro de
-relatório salvo usado no teste e **restauram** o estado de primeiro acesso do
-administrador ao final. São reexecutáveis.
+Todos são **auto-limpantes**: os fluxos criam e removem os próprios dados
+(marcadores `FLUXO-UI-TESTE` e `EMPRESTIMO-UI-TESTE`, cliente `Cliente Teste Fluxo UI`),
+removem o filtro de relatório salvo usado no teste e **restauram** o estado de
+primeiro acesso do administrador ao final. São reexecutáveis.
 Screenshots em `scripts/screenshots/`; saída em `scripts/*-output.txt`.
 
+> O smoke exige dados de demonstração (`flask seed-demo --force`).
+> Após adicionar/registrar um blueprint é preciso **reiniciar o Flask**: uma
+> instância antiga responde 404/405 em `/api/loans`.
+
 `node scripts/verify_all.mjs` (ou `npm run verify` em `frontend/`) encadeia
-**pytest → build → smoke → fluxos** e retorna código de saída adequado para CI.
+**pytest → build → smoke → fluxos → empréstimos** e retorna código de saída
+adequado para CI.
 
 ---
 
@@ -183,6 +196,9 @@ Variáveis em `backend/.env` (copiar de `.env.example`; **nunca versionar** `.en
 - **Recuperação de senha**: com SMTP configurado o link é enviado por e-mail; em dev,
   com `EXPOSE_RESET_TOKEN=true`, a API também devolve o token para testes. Falhas de
   SMTP são registradas e **não** revelam se o e-mail existe.
+- **Relatório de empréstimos por e-mail**: usa a mesma configuração SMTP; os filtros
+  vão na query string e o texto é editável. Sem `MAIL_SERVER`, a API responde
+  `email_sent: false` com o texto para conferência (não revela dados do destinatário).
 
 ### Credenciais de desenvolvimento
 - **Administrador**: `admin@factorpro.com.br` / `Admin@12345`
@@ -205,6 +221,8 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `boletos` | code (`BOL-00001`), identifier, barcode, bank, client_id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment_* |
 | `operations` | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados |
 | `receipts` | code (`REC-00001`), document_kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment_* — baixa **manual** e auditada |
+| `loans` | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete** |
+| `installments` | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição |
 | `audit_logs` | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at |
 | `settings` | key/value (dados da empresa) |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
@@ -216,6 +234,7 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 - **DocumentStatus**: `EM_ABERTO`, `LIQUIDADO`, `DEVOLVIDO`, `CANCELADO`
   (`PENDING = (EM_ABERTO, DEVOLVIDO)` = ainda representa valor devido).
 - **OperationStatus**: `ABERTA`, `FECHADA`.
+- **LoanStatus**: `ABERTA`, `QUITADA`, `CANCELADA` (`ALL` para filtros).
 - **DocumentKind**: `CHEQUE`, `BOLETO` (discriminador usado por `receipts`).
 - **AuditAction**: `CREATE, UPDATE, DELETE, LOGIN, LOGIN_FAILED, LOGOUT,
   STATUS_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET, EXPORT`.
@@ -245,6 +264,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | **boletos** | idem cheques |
 | **operations** | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) |
 | **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` |
+| **loans** | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email` |
 | **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind, status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
 | **dashboard** | `GET /summary` (filtros: date_from, date_to, client_id) |
 | **settings** | `GET /company` (todos) `PUT /company` (ADMIN) |
@@ -266,6 +286,17 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 - Chaves de recebimento: `document_kind, document_id, receipt_date, amount, notes`.
   A baixa é **manual**; o valor é gravado exatamente como informado (aviso se exceder
   o saldo). Ao atingir o líquido, o título vira `LIQUIDADO`; o estorno reverte.
+- Chaves de empréstimo: `client_id, loan_date, loan_amount, received_amount,
+  profit_amount, status, notes, installments:[{due_date, amount, notes}]`. O array
+  de parcelas enviado pelo formulário tem prioridade sobre `installments_config`.
+  Valores são gravados exatamente como informados; a soma das parcelas é apenas
+  conferência informativa. `GET /<id>` inclui `limit` e `history` (auditoria).
+- **Relatório de empréstimos**: filtros `date_from, date_to, client_id, status,
+  search`. `/summary` devolve `cards, by_month (com received_amount), by_status,
+  clients, loans, installments, counts, filters, period_label, generated_at`.
+  `POST /report/email` recebe `{to, message}` e os filtros na **query string**; responde
+  `email_sent, subject, preview`. A duplicata `/<id>/duplicata` devolve `item,
+  company, generated_at` **sem gravar nada**.
 - **Relatórios**: filtros `date_from, date_to, client_id, kind, status, overdue, search`.
   Títulos são filtrados por `operation_date`; recebimentos por `receipt_date`.
   A resposta de `/summary` traz `cards, by_kind, by_status, by_month, clients,
@@ -295,10 +326,10 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 ### Papéis e permissões
 | Ação | ADMIN | OPERATOR | VIEWER |
 |------|:---:|:---:|:---:|
-| Ver tudo | ✅ | ✅ | ✅ |
-| Criar/editar clientes, cheques, boletos, operações e recebimentos; alterar status | ✅ | ✅ | ❌ |
-| Excluir clientes/documentos/operações e estornar recebimentos (lógica) | ✅ | ❌ | ❌ |
-| Exportar relatórios (PDF/planilha) e gerar mensagem de WhatsApp | ✅ | ✅ | ✅ |
+| Ver tudo (inclui **empréstimos** e seu relatório) | ✅ | ✅ | ✅ |
+| Criar/editar clientes, cheques, boletos, operações, recebimentos e **empréstimos**; alterar status | ✅ | ✅ | ❌ |
+| Excluir clientes/documentos/operações/**empréstimos** e estornar recebimentos (lógica) | ✅ | ❌ | ❌ |
+| Exportar relatórios (PDF/planilha), gerar mensagem de WhatsApp e **enviar relatório por e-mail** | ✅ | ✅ | ✅ |
 | Salvar/remover **os próprios** filtros de relatório | ✅ | ✅ | ✅ |
 | Administração (usuários + auditoria) | ✅ | ❌ | ❌ |
 | Configurações da empresa (editar) | ✅ | ❌ | ❌ |
@@ -322,7 +353,12 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   Temas **claro/escuro** com preferência salva; sidebar recolhível; responsivo.
 - **Contraste WCAG AA** garantido por tokens de texto dedicados: `--fp-green-text`,
   `--fp-petroleum-text`, `--fp-danger-text`, `--fp-warning-text` e `--tone-text`
-  (por tom de card/toast). Manter ao adicionar novas cores de texto.
+  (por tom de card/toast). Manter ao adicionar novas cores de texto. Os avisos de
+  divergência, limite e vencimento usam esses tokens (nunca a cor de fundo do tema).
+- **Selects com seta única**: estilo global em `styles/app.css` remove as setas
+  duplicadas de `<select>` (nativo + Bootstrap) em **Tipo, Situação, Status e
+  Ordenador por**. Novos selects devem seguir o mesmo padrão — uma única seta,
+  alinhada como os demais campos. O smoke verifica essa checagem.
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
 - **Dashboard**: filtros em rascunho com botão **Aplicar** (presets aplicam na hora).
 - **Relatórios** (`/relatorios`): filtros em rascunho com **Aplicar**, presets de período,
@@ -331,6 +367,14 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   **Filtros salvos** ficam na conta do usuário (API `/reports/filters`, até 20),
   disponíveis em qualquer dispositivo; o rótulo da área é “Filtros salvos na sua conta”.
   Tabelas usam `.report-table` dentro de `.fp-table-wrap`.
+- **Empréstimos** (`/emprestimos`): formulário com busca automática do cliente
+  (`ClientSelect`), valores informados (emprestado/recebido/lucro), parcelas geradas
+  como **sugestão editável** (quantidade, 1º vencimento e periodicidade) e aviso de
+  limite sem bloqueio. Estilos em `styles/emprestimos.css`. A **duplicata**
+  (`/emprestimos/:id/duplicata`) é somente visão de impressão — não grava nada.
+  O relatório (`/emprestimos/relatorio`) usa as mesmas convenções de filtros,
+  gráficos ApexCharts, exportações por blob autenticado, WhatsApp (texto editável) e
+  formulário de e-mail com os filtros atuais.
 - **Code-splitting**: `App.jsx` carrega as páginas com `React.lazy` + `Suspense`
   (fallback `BootScreen`); layout, guardas e tema permanecem no bundle inicial.
   `vite.config.js` separa `react-vendor` e `charts-vendor` (ApexCharts só é baixado
@@ -350,22 +394,29 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 | Suíte | Comando | Resultado atual |
 |-------|---------|-----------------|
-| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **112 passed** |
-| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **89/89** |
+| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **121 passed** |
+| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **101/101** |
 | Fluxos funcionais UI | `node scripts/browser_flows.mjs` | **37/37** |
-| Verificação completa | `node scripts/verify_all.mjs` | pytest → build → smoke → fluxos |
+| Fluxo de empréstimos UI | `node scripts/browser_loans.mjs` | **23/23** |
+| Verificação completa | `node scripts/verify_all.mjs` | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
-além das telas de operações, recebimentos e relatórios (5 abas e resumo derivado).
+além das telas de operações, recebimentos, relatórios (5 abas e resumo derivado),
+**empréstimos (lista/formulário/detalhe/relatório) e a checagem de seta única dos selects**.
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ
 duplicado (422), cheque com divergência, boleto coerente, exclusão bloqueada, mudança de
 status, exclusão lógica, **auditoria conferida via API**, relatório consolidado,
 exportações PDF/planilha, registro `EXPORT` na auditoria, **filtro de relatório salvo**
 (criação, listagem na interface, aplicação e remoção).
+O fluxo de empréstimos cobre: parcelas geradas/editáveis, exposição e aviso de limite,
+duplicata para impressão, relatório com gráficos/cards e exportações PDF/XLSX — com
+limpeza automática do empréstimo `EMPRESTIMO-UI-TESTE` e restauração do administrador.
 Os testes de backend incluem e-mail de recuperação (conteúdo, envio, falha de SMTP),
 throttling com Redis (janela deslizante, fallback), exigência de `MAIL_SERVER` em
-produção e CRUD/limite/isolamento dos filtros salvos por usuário.
+produção, CRUD/limite/isolamento dos filtros salvos por usuário e o módulo de
+empréstimos (`tests/test_loans.py`: parcelas, limites, exposição, relatório, WhatsApp,
+e-mail e duplicata).
 
 > Os 422 **intencionais** (duplicidade e exclusão bloqueada) são erros esperados no
 > console do navegador e já são ignorados pelo `browser_flows.mjs`.
@@ -377,7 +428,7 @@ DOM/estilo computado; os screenshots ficam para conferência humana.
 
 ## 10. Estado atual, pendências e próximos passos
 
-**Todas as cinco etapas planejadas estão entregues e verificadas.** O sistema roda em
+**Todas as seis etapas planejadas estão entregues e verificadas.** O sistema roda em
 desenvolvimento em `http://127.0.0.1:5000` (Flask servindo o build do SPA) e está pronto
 para uso; a lista abaixo registra o que foi entregue em cada etapa.
 
@@ -468,6 +519,33 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Revisão final**: textos, acessibilidade AA, responsividade e documentação
   (`AGENTS.md`, `README.md`, `.env.example`) atualizados.
 
+### Entregue na Etapa 6 ✅
+- **Empréstimos**: modelos `Loan`/`Installment`, migração
+  `269e70536ab9_loans_and_installments.py`, serviços `loans.py`/`loans_report.py`,
+  blueprint `/api/loans` e `tests/test_loans.py` (9 testes). Valores emprestado,
+  recebido e lucro são **informados e gravados exatamente como digitados** — nenhum
+  juro, taxa ou encargo é calculado. Parcelas são uma **sugestão editável** de divisão
+  do principal (quantidade, 1º vencimento e periodicidade).
+- **Limite e exposição**: o saldo das parcelas `EM_ABERTO`/`DEVOLVIDO` entra na
+  exposição do cliente; ultrapassar o limite é **aviso**, nunca bloqueio. A busca do
+  cliente é automática pelo cadastro (`ClientSelect`).
+- **Interface**: lista, formulário, detalhe e visão de impressão da duplicata em
+  `/emprestimos`; estilos dedicados em `styles/emprestimos.css`. A **duplicata**
+  (`/emprestimos/:id/duplicata`) apenas apresenta dados reais do cliente e da empresa
+  (**não grava registro novo**) e usa quebras de página para impressão profissional.
+- **Relatório de empréstimos** (`/emprestimos/relatorio`): filtros (período, cliente,
+  situação e busca), cards, gráficos de valores/ganhos/quantidade (`by_month` inclui
+  `received_amount`), exportações PDF/XLSX por blob autenticado, WhatsApp com texto
+  editável e envio por e-mail com os filtros atuais na query string.
+- **Correção visual**: selects de Tipo, Situação, Status e Ordenador por passaram a
+  exibir **uma única seta**, igual aos demais campos; textos contextuais usam tokens
+  AA. O smoke verifica a checagem de seta única.
+- **Verificação**: `node scripts/verify_all.mjs` → pytest **121 passed**, build OK,
+  smoke **101/101**, fluxos **37/37**, fluxo de empréstimos **23/23**. Novo script
+  auto-limpante `scripts/browser_loans.mjs` integrado à verificação completa.
+- **Documentação**: `PROGRESSO.md`, `README.md`, `backend/.env.example` e este
+  `AGENTS.md` atualizados com o módulo, rotas, credenciais de teste e contagens.
+
 ### Pendências conhecidas / observações
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
   credenciais no ambiente); a construção da mensagem, o caminho de envio e a tolerância
@@ -475,7 +553,8 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - Redis **não está em execução** localmente; o caminho Redis é exercitado por testes com
   um cliente simulado e o fallback em memória é o padrão em dev.
 - Repositório publicado no GitHub: `https://github.com/cspsistemasdigital-fish/CSP-FACTOR-PRO`
-  (branch `main`, commit `d663702`). O push usa Git Credential Manager; a conta
+  (branch `main`; ver `git log` para o commit mais recente, que inclui a Etapa 6).
+  O push usa Git Credential Manager; a conta
   `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar como
   `cspsistemasdigital-fish` (`git credential-manager github login`).
 - Sem linter/formatter configurado no frontend (`npm run lint` é um placeholder).
@@ -483,20 +562,29 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   disparo automático nem armazenamento de conversas (decisão intencional).
 - Filtros salvos: limite de 20 por usuário, sem compartilhamento entre usuários e sem
   auditoria dedicada (a remoção é lógica). Não há agendamento de envio de relatórios.
+- Empréstimos: o e-mail do relatório usa o mesmo SMTP (também não testado com provedor
+  externo); sem `MAIL_SERVER` a API responde `email_sent: false` com o texto para
+  conferência. A duplicata é apenas para impressão — não gera PDF no servidor nem
+  grava registro, e o navegador é responsável pela impressão/PDF.
 - A implantação em PostgreSQL/Alembic foi validada apenas no SQLite de desenvolvimento;
-  rodar `flask db upgrade` no banco de produção antes do primeiro acesso.
+  rodar `flask db upgrade` no banco de produção antes do primeiro acesso
+  (inclui a migração `269e70536ab9_loans_and_installments.py`).
 
 ### Próximos passos recomendados (melhorias futuras, mediante autorização)
 1. **Validar SMTP real** com um provedor transacional (SPF/DKIM, bounce handling) e
-   testar o fluxo completo de recuperação em produção.
+   testar em produção tanto a recuperação de senha quanto o envio do relatório de
+   empréstimos.
 2. **Redis gerenciado** em produção multi-instância (throttling e, se necessário,
    sessões/refresh tokens compartilhados).
-3. **CI** executando `scripts/verify_all.mjs` (pytest + build + smoke + fluxos) com
-   relatório de acessibilidade.
-4. **Agendamento de relatórios** por e-mail (envio periódico dos filtros salvos).
+3. **CI** executando `scripts/verify_all.mjs` (pytest + build + smoke + fluxos +
+   empréstimos) com relatório de acessibilidade.
+4. **Agendamento de relatórios** por e-mail (envio periódico dos filtros salvos e do
+   relatório de empréstimos).
 5. **Compartilhamento de filtros** entre usuários ou por equipe, com auditoria.
 6. **Code-splitting adicional** por componente e compressão Brotli/CDN, se o volume
    de usuários justificar.
+7. **PDF da duplicata no servidor** (ReportLab), se houver necessidade de download
+   além da impressão pelo navegador — decisão atual é não gravar nada.
 
 ---
 

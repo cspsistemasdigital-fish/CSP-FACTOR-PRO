@@ -5530,7 +5530,63 @@ code {
   }
 }
 
+/* ---------------------------------------------------------------------------
+   Selects: UMA única seta por controle.
+   O Bootstrap desenha o caret em duas camadas (--bs-form-select-bg-img e
+   --bs-form-select-bg-icon) e a classe .fp-input, mais adiante, usa o atalho
+   "background" que redefine a imagem. Este bloco (com especificidade maior e
+   no fim da cascata) unifica tudo: variáveis anuladas, appearance desligado,
+   uma só imagem e posição/tamanho explícitos — inclusive no tema escuro e em
+   estados inválidos/desabilitados.
+--------------------------------------------------------------------------- */
+.form-select,
+.form-select.fp-input {
+  --bs-form-select-bg-img: none;
+  --bs-form-select-bg-icon: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: var(--fp-surface);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%2364786f' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 16px 12px;
+  padding-right: 2.2rem;
+}
+
+[data-theme="dark"] .form-select,
+[data-theme="dark"] .form-select.fp-input {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%239bb0a7' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
+.form-select:disabled {
+  background-color: var(--fp-surface-2);
+}
+
+/* Bootstrap usa cores fixas (#dc3545, #ffc107) que nao atendem AA nos dois
+   temas. Os tokens de texto do design system ja foram validados pelo smoke. */
+.text-danger {
+  color: var(--fp-danger-text) !important;
+}
+
+.text-warning {
+  color: var(--fp-warning-text) !important;
+}
+
+.text-success {
+  color: var(--fp-green-text) !important;
+}
+
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 13mm;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
   .sidebar,
   .topbar,
   .toast-stack,
@@ -5557,5 +5613,84 @@ code {
   .stat-card {
     box-shadow: none;
     break-inside: avoid;
+  }
+
+  /* Duplicata e relatório de empréstimos: folha limpa e quebras controladas. */
+  .print-sheet {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #111;
+    box-shadow: none;
+  }
+
+  .print-toolbar {
+    display: none !important;
+  }
+
+  .print-page {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .print-page:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+
+  .print-section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #c9d4d0;
+    padding: 5px 6px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .print-table th {
+    background: #e8f3ed;
+    color: #123d32;
+    font-weight: 700;
+  }
+
+  .print-table tbody tr:nth-child(even) {
+    background: #f7faf9;
+  }
+
+  .print-metrics {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .print-metric {
+    border: 1px solid #c9d4d0;
+    border-radius: 6px;
+    padding: 8px;
+  }
+
+  .print-metric strong {
+    display: block;
+    font-size: 13pt;
+    color: #123d32;
+  }
+
+  .print-sign {
+    margin-top: 18mm;
+    border-top: 1px solid #555;
+    padding-top: 6px;
+    font-size: 9pt;
   }
 }

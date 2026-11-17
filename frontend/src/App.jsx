@@ -28,6 +28,11 @@ const OperacaoDetail = lazy(() => import('./pages/operacoes/OperacaoDetail'))
 const RecebimentosList = lazy(() => import('./pages/recebimentos/RecebimentosList'))
 const RecebimentoForm = lazy(() => import('./pages/recebimentos/RecebimentoForm'))
 const RecebimentoDetail = lazy(() => import('./pages/recebimentos/RecebimentoDetail'))
+const EmprestimosList = lazy(() => import('./pages/emprestimos/EmprestimosList'))
+const EmprestimoForm = lazy(() => import('./pages/emprestimos/EmprestimoForm'))
+const EmprestimoDetail = lazy(() => import('./pages/emprestimos/EmprestimoDetail'))
+const RelatorioEmprestimos = lazy(() => import('./pages/emprestimos/RelatorioEmprestimos'))
+const EmprestimoPrint = lazy(() => import('./pages/emprestimos/EmprestimoPrint'))
 const ReciboPrint = lazy(() => import('./pages/recibos/ReciboPrint'))
 const Relatorios = lazy(() => import('./pages/relatorios/Relatorios'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -116,6 +121,10 @@ export default function App() {
             <Route path="recebimentos" element={<RecebimentosList />} />
             <Route path="recebimentos/:id" element={<RecebimentoDetail />} />
 
+            <Route path="emprestimos" element={<EmprestimosList />} />
+            <Route path="emprestimos/relatorio" element={<RelatorioEmprestimos />} />
+            <Route path="emprestimos/:id" element={<EmprestimoDetail />} />
+
             <Route element={<WriteOnly />}>
               <Route path="clientes/novo" element={<ClientForm />} />
               <Route path="clientes/:id/editar" element={<ClientForm />} />
@@ -127,6 +136,8 @@ export default function App() {
               <Route path="operacoes/:id/editar" element={<OperacaoForm />} />
               <Route path="recebimentos/novo" element={<RecebimentoForm />} />
               <Route path="recebimentos/:id/editar" element={<RecebimentoForm />} />
+              <Route path="emprestimos/novo" element={<EmprestimoForm />} />
+              <Route path="emprestimos/:id/editar" element={<EmprestimoForm />} />
             </Route>
 
             <Route path="relatorios" element={<Relatorios />} />
@@ -141,6 +152,7 @@ export default function App() {
           </Route>
 
           <Route path="recibos/:id/imprimir" element={<ReciboPrint />} />
+          <Route path="emprestimos/:id/duplicata" element={<EmprestimoPrint />} />
         </Route>
       </Routes>
     </Suspense>

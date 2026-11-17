@@ -45,6 +45,7 @@ class Client(TimestampMixin, SoftDeleteMixin, db.Model):
     boletos = db.relationship("Boleto", back_populates="client", lazy="dynamic")
     operations = db.relationship("Operation", back_populates="client", lazy="dynamic")
     receipts = db.relationship("Receipt", back_populates="client", lazy="dynamic")
+    loans = db.relationship("Loan", back_populates="client", lazy="dynamic")
 
     @property
     def status_label(self) -> str:
