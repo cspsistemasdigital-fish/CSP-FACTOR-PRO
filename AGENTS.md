@@ -705,10 +705,11 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - Redis **não está em execução** localmente; o caminho Redis é exercitado por testes com
   um cliente simulado e o fallback em memória é o padrão em dev.
 - Repositório publicado no GitHub: `https://github.com/cspsistemasdigital-fish/CSP-FACTOR-PRO`
-  (branch `main`). A Etapa 7 está commitada localmente em `2bf6bf1` e a Etapa 8 no
-  topo de `main`; **ambos ainda aguardando push**. O push usa Git Credential Manager;
-  a conta `ClaudionorPeixinho` não tem escrita no repositório — é preciso autenticar
-  como `cspsistemasdigital-fish` (`git credential-manager github login`).
+  (branch `main`). A Etapa 7 (`2bf6bf1`) e a Etapa 8 (`a349770`) já foram **enviadas**
+  ao `origin/main`. O push usa Git Credential Manager; a conta `ClaudionorPeixinho`
+  não tem escrita no repositório — é preciso autenticar como
+  `cspsistemasdigital-fish` (`git credential-manager github login --force --username
+  cspsistemasdigital-fish`).
 - Sem linter/formatter configurado no frontend (`npm run lint` é um placeholder).
 - WhatsApp: o sistema apenas **gera o texto revisável** e abre o `wa.me` — não há
   disparo automático nem armazenamento de conversas (decisão intencional).
