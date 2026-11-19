@@ -12,15 +12,15 @@
 
 Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas.
 
-| Etapa | Escopo | Situação |
-|-------|--------|----------|
-| **1** | Estrutura, banco de dados, autenticação, **Clientes**, **Cheques**, **Boletos** | ✅ Concluída |
-| **2** | **Operações**, **Recebimentos**, limites aplicados, recibos | ✅ Concluída |
-| **3** | Dashboard completo, **Relatórios**, exportações (PDF/planilha), WhatsApp | ✅ Concluída |
-| **4** | Produção: e-mail de recuperação, throttling com Redis, verificação completa | ✅ Concluída |
-| **5** | Experiência: filtros de relatório por usuário, code-splitting, revisão final | ✅ Concluída |
-| **6** | **Empréstimos**: parcelas, exposição, relatório, duplicata, e-mail/WhatsApp e selects com seta única | ✅ Concluída |
-| **7** | **Relatório Geral unificado** (cheques, boletos e empréstimos) e **identidade visual personalizável** (nome/ícone do app e logo real em todas as exportações) | ✅ Concluída |
+| Etapa | Escopo                                                                                                                                                                     | Situação     |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| **1** | Estrutura, banco de dados, autenticação, **Clientes**, **Cheques**, **Boletos**                                                                                            | ✅ Concluída |
+| **2** | **Operações**, **Recebimentos**, limites aplicados, recibos                                                                                                                | ✅ Concluída |
+| **3** | Dashboard completo, **Relatórios**, exportações (PDF/planilha), WhatsApp                                                                                                   | ✅ Concluída |
+| **4** | Produção: e-mail de recuperação, throttling com Redis, verificação completa                                                                                                | ✅ Concluída |
+| **5** | Experiência: filtros de relatório por usuário, code-splitting, revisão final                                                                                               | ✅ Concluída |
+| **6** | **Empréstimos**: parcelas, exposição, relatório, duplicata, e-mail/WhatsApp e selects com seta única                                                                       | ✅ Concluída |
+| **7** | **Relatório Geral unificado** (cheques, boletos e empréstimos) e **identidade visual personalizável** (nome/ícone do app e logo real em todas as exportações)              | ✅ Concluída |
 | **8** | **Excel nas listagens**, **backup diário**, **atendente virtual** (texto/voz), **situação única** no Relatório Geral e **múltiplas fotos** em cheques/boletos/recebimentos | ✅ Concluída |
 
 > **Novas etapas ou módulos só começam com autorização explícita do usuário.**
@@ -51,6 +51,7 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 ## 2. Stack e estrutura
 
 ### Stack obrigatória
+
 - **Backend**: Python + Flask + SQLAlchemy + Flask-Migrate + Flask-JWT-Extended + Flask-Cors.
 - **Exportações**: ReportLab (PDF A4 paisagem) + openpyxl (planilha com 5 abas) + Pillow (ícones PWA a partir do logo enviado).
 - **Frontend**: React (JS) + Bootstrap 5 + ApexCharts + React Router + Axios (PWA).
@@ -175,24 +176,24 @@ adequado para CI.
 
 Variáveis em `backend/.env` (copiar de `.env.example`; **nunca versionar** `.env`):
 
-| Variável | Padrão dev | Observação |
-|----------|-----------|------------|
-| `FLASK_ENV` | `development` | `production` exige PostgreSQL + secrets próprios |
-| `SECRET_KEY` / `JWT_SECRET_KEY` | inseguros | obrigatórios fortes em produção |
-| `DATABASE_URL` | `sqlite:///instance/factorpro.db` | produção: `postgresql+psycopg2://...` |
-| `JWT_ACCESS_TOKEN_MINUTES` / `JWT_REFRESH_TOKEN_DAYS` | 120 / 7 | |
-| `UPLOAD_FOLDER` / `MAX_UPLOAD_MB` | `instance/uploads` / 10 | extensões: pdf, png, jpg, jpeg, webp |
-| `ADMIN_NAME/EMAIL/PASSWORD` | Administrador / admin@factorpro.com.br / Admin@12345 | criados por `flask seed` |
-| `EXPOSE_RESET_TOKEN` | `true` (dev) | em produção o token **não** é retornado |
-| `FRONTEND_BASE_URL` | `http://127.0.0.1:5000` | base do link de recuperação (`/redefinir-senha?token=...`) |
-| `MAIL_SERVER` / `MAIL_PORT` / `MAIL_USE_TLS` | vazio / 587 / true | **obrigatório em produção**; sem ele nenhum e-mail é enviado |
-| `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_DEFAULT_SENDER` | vazio / vazio / FACTOR PRO `<no-reply@…>` | credenciais SMTP e remetente |
-| `MAIL_TIMEOUT_SECONDS` | 10 | tempo máximo de conexão SMTP |
-| `RATE_LIMIT_STORAGE_URL` | vazio (memória) | `redis://…` para throttling compartilhado entre instâncias |
-| `BACKUP_FOLDER` | `instance/backups` | pasta dos arquivos ZIP (não versionar) |
-| `BACKUP_SCHEDULER_ENABLED` | `true` | `false` em testes; preferências diárias ficam em `settings` |
-| `BACKUP_CHECK_INTERVAL_SECONDS` | `60` | frequência com que o agendador relê as preferências |
-| `BACKUP_PG_DUMP_PATH` / `BACKUP_PG_DUMP_TIMEOUT_SECONDS` | `pg_dump` / `120` | usado apenas quando `DATABASE_URL` é PostgreSQL |
+| Variável                                                  | Padrão dev                                           | Observação                                                   |
+| --------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------------------------ |
+| `FLASK_ENV`                                               | `development`                                        | `production` exige PostgreSQL + secrets próprios             |
+| `SECRET_KEY` / `JWT_SECRET_KEY`                           | inseguros                                            | obrigatórios fortes em produção                              |
+| `DATABASE_URL`                                            | `sqlite:///instance/factorpro.db`                    | produção: `postgresql+psycopg2://...`                        |
+| `JWT_ACCESS_TOKEN_MINUTES` / `JWT_REFRESH_TOKEN_DAYS`     | 120 / 7                                              |                                                              |
+| `UPLOAD_FOLDER` / `MAX_UPLOAD_MB`                         | `instance/uploads` / 10                              | extensões: pdf, png, jpg, jpeg, webp                         |
+| `ADMIN_NAME/EMAIL/PASSWORD`                               | Administrador / admin@factorpro.com.br / Admin@12345 | criados por `flask seed`                                     |
+| `EXPOSE_RESET_TOKEN`                                      | `true` (dev)                                         | em produção o token **não** é retornado                      |
+| `FRONTEND_BASE_URL`                                       | `http://127.0.0.1:5000`                              | base do link de recuperação (`/redefinir-senha?token=...`)   |
+| `MAIL_SERVER` / `MAIL_PORT` / `MAIL_USE_TLS`              | vazio / 587 / true                                   | **obrigatório em produção**; sem ele nenhum e-mail é enviado |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` / `MAIL_DEFAULT_SENDER` | vazio / vazio / FACTOR PRO `<no-reply@…>`            | credenciais SMTP e remetente                                 |
+| `MAIL_TIMEOUT_SECONDS`                                    | 10                                                   | tempo máximo de conexão SMTP                                 |
+| `RATE_LIMIT_STORAGE_URL`                                  | vazio (memória)                                      | `redis://…` para throttling compartilhado entre instâncias   |
+| `BACKUP_FOLDER`                                           | `instance/backups`                                   | pasta dos arquivos ZIP (não versionar)                       |
+| `BACKUP_SCHEDULER_ENABLED`                                | `true`                                               | `false` em testes; preferências diárias ficam em `settings`  |
+| `BACKUP_CHECK_INTERVAL_SECONDS`                           | `60`                                                 | frequência com que o agendador relê as preferências          |
+| `BACKUP_PG_DUMP_PATH` / `BACKUP_PG_DUMP_TIMEOUT_SECONDS`  | `pg_dump` / `120`                                    | usado apenas quando `DATABASE_URL` é PostgreSQL              |
 
 - Em `production`, `create_app()` **recusa** iniciar com SQLite, com `SECRET_KEY` de dev
   ou sem `MAIL_SERVER` configurado.
@@ -214,6 +215,7 @@ Variáveis em `backend/.env` (copiar de `.env.example`; **nunca versionar** `.en
   backups manuais funcionam mesmo com o agendador desligado.
 
 ### Credenciais de desenvolvimento
+
 - **Administrador**: `admin@factorpro.com.br` / `Admin@12345`
 - O administrador semeado nasce com `must_change_password = True` → o primeiro login no
   navegador redireciona para `/trocar-senha` (comportamento intencional).
@@ -226,23 +228,24 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 `updated_by_id`) e as entidades de negócio têm `SoftDeleteMixin` (`is_deleted`,
 `deleted_at`, `deleted_by_id`). **Exclusão é sempre lógica; nunca física.**
 
-| Tabela | Campos-chave |
-|--------|--------------|
-| `users` | name, email (único), password_hash, role, is_active, must_change_password, last_login_at |
-| `clients` | code (`CLI-0001`), name, person_type (PF/PJ), document (normalizado), contatos/endereço, registered_at, operational_limit, status (ATIVO/INATIVO) |
-| `cheques` | code (`CHQ-00001`), number, bank, agency, account, identifier, client_id, issuer_document/name, nominal_amount, discount_amount, interest_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, attachment_* |
-| `boletos` | code (`BOL-00001`), identifier, barcode, bank, client_id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment_* |
-| `operations` | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados |
-| `receipts` | code (`REC-00001`), document_kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment_* — baixa **manual** e auditada |
-| `document_attachments` | document_kind (`CHEQUE`/`BOLETO`/`RECEIPT`), document_id, path, name, size, content_type — **várias fotos** por documento, com soft delete; coluna legada `attachment_*` preservada |
-| `loans` | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete** |
-| `installments` | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição |
-| `audit_logs` | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at |
-| `settings` | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`) |
-| `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
-| `report_filters` | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos) |
+| Tabela                  | Campos-chave                                                                                                                                                                                                                                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `users`                 | name, email (único), password_hash, role, is_active, must_change_password, last_login_at                                                                                                                                                         |
+| `clients`               | code (`CLI-0001`), name, person_type (PF/PJ), document (normalizado), contatos/endereço, registered_at, operational_limit, status (ATIVO/INATIVO)                                                                                                |
+| `cheques`               | code (`CHQ-00001`), number, bank, agency, account, identifier, client*id, issuer_document/name, nominal_amount, discount_amount, interest_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, attachment*\* |
+| `boletos`               | code (`BOL-00001`), identifier, barcode, bank, client*id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment*\*          |
+| `operations`            | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados                                                                                                      |
+| `receipts`              | code (`REC-00001`), document*kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment*\* — baixa **manual** e auditada                                                                                              |
+| `document_attachments`  | document*kind (`CHEQUE`/`BOLETO`/`RECEIPT`), document_id, path, name, size, content_type — **várias fotos** por documento, com soft delete; coluna legada `attachment*\*` preservada                                                             |
+| `loans`                 | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete**                                                      |
+| `installments`          | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição                                                                                                    |
+| `audit_logs`            | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at                                                                                                                                               |
+| `settings`              | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`)                     |
+| `password_reset_tokens` | user_id, token_hash, expires_at, used_at                                                                                                                                                                                                         |
+| `report_filters`        | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos)                                                                                                                       |
 
 ### Enums
+
 - **Role**: `ADMIN` (Administrador), `OPERATOR` (Operador), `VIEWER` (Consultor/Visualizador).
 - **ClientStatus**: `ATIVO`, `INATIVO`.
 - **DocumentStatus**: `EM_ABERTO`, `LIQUIDADO`, `DEVOLVIDO`, `CANCELADO`
@@ -251,9 +254,10 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 - **LoanStatus**: `ABERTA`, `QUITADA`, `CANCELADA` (`ALL` para filtros).
 - **DocumentKind**: `CHEQUE`, `BOLETO` (discriminador usado por `receipts`).
 - **AuditAction**: `CREATE, UPDATE, DELETE, LOGIN, LOGIN_FAILED, LOGOUT,
-  STATUS_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET, EXPORT`.
+STATUS_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET, EXPORT`.
 
 ### Índices e integridade
+
 - `uq_clients_document_active`: documento **único entre clientes não excluídos**
   (índice parcial — `WHERE is_deleted = 0/false`), somado à validação na aplicação.
 - Valores monetários: `Numeric(15,2)` (nunca float). Serializados como string `"0.00"`.
@@ -269,61 +273,62 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 `{message, errors:{campo:msg}}`. Erros: **422** validação, **401/403/404/429**.
 `GET /api/health` é público.
 
-| Recurso | Rotas |
-|---------|-------|
-| **auth** | `POST /login` `POST /refresh` `POST /logout` `GET /me` `POST /change-password` `POST /forgot-password` `POST /reset-password` |
-| **users** (ADMIN) | `GET/POST /` `PUT /<id>` `POST /<id>/reset-password` `GET /audit-logs` (filtros: entity, action, user_id, search, date_from, date_to) |
-| **clients** | `GET /` (search, status, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `DELETE /<id>` (ADMIN) |
-| **cheques** | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR) |
-| **boletos** | idem cheques |
-| **operations** | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) |
-| **receipts** | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR) |
-| **loans** | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email` |
-| **reports** | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind=CHEQUE\|BOLETO\|EMPRESTIMO, status, loan_status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário) |
-| **list exports** | `GET /export/<resource>/xlsx` · `GET /export/resources` — resource: `clients`, `cheques`, `boletos`, `operations`, `receipts`, `loans` (todos os autenticados) e `users`, `audit` (ADMIN); mesmos filtros da listagem, sem paginação |
-| **dashboard** | `GET /summary` (filtros: date_from, date_to, client_id) |
-| **settings** | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **backup**: `GET /backup` (todos) `PUT /backup` `POST /backup/run` `GET /backup/<name>/download` `DELETE /backup/<name>` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
+| Recurso           | Rotas                                                                                                                                                                                                                                                                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **auth**          | `POST /login` `POST /refresh` `POST /logout` `GET /me` `POST /change-password` `POST /forgot-password` `POST /reset-password`                                                                                                                                                                                                                 |
+| **users** (ADMIN) | `GET/POST /` `PUT /<id>` `POST /<id>/reset-password` `GET /audit-logs` (filtros: entity, action, user_id, search, date_from, date_to)                                                                                                                                                                                                         |
+| **clients**       | `GET /` (search, status, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `DELETE /<id>` (ADMIN)                                                                                                                                                                                                           |
+| **cheques**       | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR)                                                                                                  |
+| **boletos**       | idem cheques                                                                                                                                                                                                                                                                                                                                  |
+| **operations**    | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN)                                                                                                                                                                                                                    |
+| **receipts**      | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR)                                                                                  |
+| **loans**         | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email`    |
+| **reports**       | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind=CHEQUE\|BOLETO\|EMPRESTIMO, status, loan_status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário)                                                    |
+| **list exports**  | `GET /export/<resource>/xlsx` · `GET /export/resources` — resource: `clients`, `cheques`, `boletos`, `operations`, `receipts`, `loans` (todos os autenticados) e `users`, `audit` (ADMIN); mesmos filtros da listagem, sem paginação                                                                                                          |
+| **dashboard**     | `GET /summary` (filtros: date_from, date_to, client_id)                                                                                                                                                                                                                                                                                       |
+| **settings**      | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **backup**: `GET /backup` (todos) `PUT /backup` `POST /backup/run` `GET /backup/<name>/download` `DELETE /backup/<name>` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
 
 ### Convenções de payload
+
 - Valores monetários aceitam `"1.234,56"` ou `"1234.56"`; gravados exatos.
 - Datas em ISO `YYYY-MM-DD`. `operation_date > due_date` é permitido (registro tardio);
   `due_date < issue_date` é bloqueado.
 - Chaves de cheque: `number, bank, agency, account, identifier, client_id,
-  issuer_document, issuer_name, nominal_amount, discount_amount, interest_amount,
-  other_expenses, net_amount, applied_limit, issue_date, due_date, operation_date,
-  status, notes`.
+issuer_document, issuer_name, nominal_amount, discount_amount, interest_amount,
+other_expenses, net_amount, applied_limit, issue_date, due_date, operation_date,
+status, notes`.
 - Chaves de boleto: `identifier, barcode, bank, client_id, beneficiary_document,
-  beneficiary_name, original_amount, discount_amount, other_expenses, net_amount,
-  applied_limit, issue_date, due_date, operation_date, status, notes`.
+beneficiary_name, original_amount, discount_amount, other_expenses, net_amount,
+applied_limit, issue_date, due_date, operation_date, status, notes`.
 - Chaves de operação: `client_id, operation_date, description, status, notes,
-  documents: [{kind: CHEQUE|BOLETO, id}]`. Só aceita documentos do **mesmo cliente**,
+documents: [{kind: CHEQUE|BOLETO, id}]`. Só aceita documentos do **mesmo cliente**,
   não excluídos, não cancelados e ainda sem outra operação.
 - Chaves de recebimento: `document_kind, document_id, receipt_date, amount, notes`.
   A baixa é **manual**; o valor é gravado exatamente como informado (aviso se exceder
   o saldo). Ao atingir o líquido, o título vira `LIQUIDADO`; o estorno reverte.
 - Chaves de empréstimo: `client_id, loan_date, loan_amount, received_amount,
-  profit_amount, status, notes, installments:[{due_date, amount, notes}]`. O array
+profit_amount, status, notes, installments:[{due_date, amount, notes}]`. O array
   de parcelas enviado pelo formulário tem prioridade sobre `installments_config`.
   Valores são gravados exatamente como informados; a soma das parcelas é apenas
   conferência informativa. `GET /<id>` inclui `limit` e `history` (auditoria).
 - **Relatório de empréstimos**: filtros `date_from, date_to, client_id, status,
-  search`. `/summary` devolve `cards, by_month (com received_amount), by_status,
-  clients, loans, installments, counts, filters, period_label, generated_at`.
+search`. `/summary` devolve `cards, by_month (com received_amount), by_status,
+clients, loans, installments, counts, filters, period_label, generated_at`.
   `POST /report/email` recebe `{to, message}` e os filtros na **query string**; responde
   `email_sent, subject, preview`. A duplicata `/<id>/duplicata` devolve `item,
-  company, generated_at` **sem gravar nada**.
+company, generated_at` **sem gravar nada**.
 - **Relatório Geral unificado**: filtros `date_from, date_to, client_id,
-  kind=CHEQUE|BOLETO|EMPRESTIMO, status (do título), loan_status (do empréstimo),
-  overdue, search`. Títulos são filtrados por `operation_date`/`loan_date`;
+kind=CHEQUE|BOLETO|EMPRESTIMO, status (do título), loan_status (do empréstimo),
+overdue, search`. Títulos são filtrados por `operation_date`/`loan_date`;
   recebimentos por `receipt_date`. `/summary` traz `cards, by_kind, by_status,
-  by_loan_status, by_month, clients, documents, loans, installments, operations,
-  receipts, counts, filters, period_label, generated_at`. `/whatsapp` devolve
+by_loan_status, by_month, clients, documents, loans, installments, operations,
+receipts, counts, filters, period_label, generated_at`. `/whatsapp` devolve
   `{item:{client, company, message, phone, url, documents_count, loans_count,
-  installments_count, total, documents}}` com texto **editável** (nada é enviado
+installments_count, total, documents}}` com texto **editável** (nada é enviado
   automaticamente). Exportações registram `AuditAction.EXPORT` com entidade `report`.
 - **Filtros salvos**: `POST /reports/filters` recebe `{name, filters:{date_from,
-  date_to, client_id, client_name, client_code, kind, status, loan_status, overdue,
-  search}}`; o servidor valida e **canonicaliza** (descarta chaves desconhecidas,
+date_to, client_id, client_name, client_code, kind, status, loan_status, overdue,
+search}}`; o servidor valida e **canonicaliza** (descarta chaves desconhecidas,
   `client_name/code` são apenas rótulos de exibição). Máximo de **20** filtros ativos
   por usuário. `GET` devolve `{items}`; `DELETE` faz exclusão **lógica** e responde
   `{message}`.
@@ -371,25 +376,28 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 - Anexos e fotos acessados por **blob autenticado** (não há URL pública de arquivo).
 
 ### Papéis e permissões
-| Ação | ADMIN | OPERATOR | VIEWER |
-|------|:---:|:---:|:---:|
-| Ver tudo (inclui **empréstimos** e seu relatório) | ✅ | ✅ | ✅ |
-| Criar/editar clientes, cheques, boletos, operações, recebimentos e **empréstimos**; alterar status | ✅ | ✅ | ❌ |
-| Excluir clientes/documentos/operações/**empréstimos** e estornar recebimentos (lógica) | ✅ | ❌ | ❌ |
-| Exportar relatórios (PDF/planilha), gerar mensagem de WhatsApp e **enviar relatório por e-mail** | ✅ | ✅ | ✅ |
-| Exportar **Excel das listagens** (exceto usuários/auditoria, ADMIN) | ✅ | ✅ | ✅ |
-| Enviar/remover **fotos extras** em cheques, boletos e recebimentos (leitura para VIEWER) | ✅ | ✅ | ❌ |
-| Ver status/configuração do backup (edição, execução, download e remoção só ADMIN) | ✅ | ✅ | ✅ |
-| Salvar/remover **os próprios** filtros de relatório | ✅ | ✅ | ✅ |
-| Administração (usuários + auditoria) | ✅ | ❌ | ❌ |
-| Configurações da empresa e **identidade visual** (nome/logo do app) — editar | ✅ | ❌ | ❌ |
+
+| Ação                                                                                               | ADMIN | OPERATOR | VIEWER |
+| -------------------------------------------------------------------------------------------------- | :---: | :------: | :----: |
+| Ver tudo (inclui **empréstimos** e seu relatório)                                                  |  ✅   |    ✅    |   ✅   |
+| Criar/editar clientes, cheques, boletos, operações, recebimentos e **empréstimos**; alterar status |  ✅   |    ✅    |   ❌   |
+| Excluir clientes/documentos/operações/**empréstimos** e estornar recebimentos (lógica)             |  ✅   |    ❌    |   ❌   |
+| Exportar relatórios (PDF/planilha), gerar mensagem de WhatsApp e **enviar relatório por e-mail**   |  ✅   |    ✅    |   ✅   |
+| Exportar **Excel das listagens** (exceto usuários/auditoria, ADMIN)                                |  ✅   |    ✅    |   ✅   |
+| Enviar/remover **fotos extras** em cheques, boletos e recebimentos (leitura para VIEWER)           |  ✅   |    ✅    |   ❌   |
+| Ver status/configuração do backup (edição, execução, download e remoção só ADMIN)                  |  ✅   |    ✅    |   ✅   |
+| Salvar/remover **os próprios** filtros de relatório                                                |  ✅   |    ✅    |   ✅   |
+| Administração (usuários + auditoria)                                                               |  ✅   |    ❌    |   ❌   |
+| Configurações da empresa e **identidade visual** (nome/logo do app) — editar                       |  ✅   |    ❌    |   ❌   |
 
 ### Regras de proteção
+
 - Excluir cliente é **bloqueado** se houver documentos em aberto/devolvidos (422).
 - Documento/cliente excluído deixa de aparecer (`is_deleted`) e é registrado na auditoria.
 - LGPD: dados mínimos, exclusão lógica, auditoria de acesso/alteração, sem exposição pública.
 
 ### Guardas de rota (frontend)
+
 `RequireAuth` (manda `must_change_password` para `/trocar-senha`) · `RequireGuest` ·
 `RequirePasswordChange` · `WriteOnly` · `AdminOnly`.
 
@@ -456,7 +464,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
   Ele monta a query string com os filtros já aplicados na URL e baixa via blob
   autenticado — sem nova dependência npm (`openpyxl` renderiza no backend).
 - **Múltiplas fotos**: `PhotoCapture` usa `<input type="file" accept="image/*"
-  capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
+capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
   uma fila; o envio é sequencial para respeitar `MAX_CONTENT_LENGTH`. `ProtectedImage`
   mostra a galeria por blob autenticado, com visualizar, baixar e remover. Integrado
   em `DocumentDetailPage` (cheques/boletos) e `RecebimentoDetail`.
@@ -474,13 +482,13 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 
 ## 9. Testes e verificação
 
-| Suíte | Comando | Resultado atual |
-|-------|---------|-----------------|
-| Backend (pytest) | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **141 passed** |
-| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs` | **101/101** |
-| Fluxos funcionais UI | `node scripts/browser_flows.mjs` | **37/37** |
-| Fluxo de empréstimos UI | `node scripts/browser_loans.mjs` | **23/23** |
-| Verificação completa | `node scripts/verify_all.mjs` | pytest → build → smoke → fluxos → empréstimos |
+| Suíte                     | Comando                                               | Resultado atual                               |
+| ------------------------- | ----------------------------------------------------- | --------------------------------------------- |
+| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **141 passed**                                |
+| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **101/101**                                   |
+| Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
+| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **23/23**                                     |
+| Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
@@ -521,6 +529,7 @@ desenvolvimento em `http://127.0.0.1:5000` (Flask servindo o build do SPA) e est
 para uso; a lista abaixo registra o que foi entregue em cada etapa.
 
 ### Entregue na Etapa 1 ✅
+
 - Estrutura completa (backend + frontend), migração inicial Alembic.
 - Autenticação JWT (access em memória + refresh httpOnly), troca/recuperação de senha,
   primeiro acesso obrigatório, throttling, auditoria de login.
@@ -534,6 +543,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - PWA instalável, temas claro/escuro, acessibilidade AA auditada.
 
 ### Entregue na Etapa 2 ✅
+
 - **Migração** `544a723c1e04_operations_and_receipts.py` (tabelas `operations` e
   `receipts`, vínculo `operation_id` em cheques e boletos).
 - **Operações (borderô)**: CRUD, vínculo de cheques/boletos do **mesmo cliente**,
@@ -550,6 +560,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Testes**: `tests/test_operations.py` e `tests/test_receipts.py` (92 no total).
 
 ### Entregue na Etapa 3 ✅
+
 - **Relatórios** (`/api/reports`, `/relatorios`): consolidação por período, cliente, tipo,
   situação, vencidos e busca livre. Títulos filtrados por `operation_date`; recebimentos
   por `receipt_date`. Totais **derivados** dos lançamentos reais, sem recálculo de juros,
@@ -570,6 +581,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   suíte total **101 passed** naquela etapa. Smoke **89/89** e fluxos **33/33**.
 
 ### Entregue na Etapa 4 ✅
+
 - **E-mail transacional** (`app/services/email.py`): SMTP configurável por `MAIL_SERVER`,
   `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER` e
   `MAIL_TIMEOUT_SECONDS`; mensagem em texto puro com link `/redefinir-senha?token=...`
@@ -589,6 +601,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   naquela etapa.
 
 ### Entregue na Etapa 5 ✅
+
 - **Filtros de relatório por usuário no servidor**: modelo `ReportFilter` (soft delete,
   máximo 20 ativos), migração `3746194c79fe_report_filters_per_user.py`,
   `app/services/report_filters.py` (validação/canonicalização) e rotas
@@ -608,6 +621,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   (`AGENTS.md`, `README.md`, `.env.example`) atualizados.
 
 ### Entregue na Etapa 6 ✅
+
 - **Empréstimos**: modelos `Loan`/`Installment`, migração
   `269e70536ab9_loans_and_installments.py`, serviços `loans.py`/`loans_report.py`,
   blueprint `/api/loans` e `tests/test_loans.py` (9 testes). Valores emprestado,
@@ -635,6 +649,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   `AGENTS.md` atualizados com o módulo, rotas, credenciais de teste e contagens.
 
 ### Entregue na Etapa 7 ✅
+
 - **Relatório Geral unificado** (`/relatorios`): o mesmo relatório agora cobre
   **cheques, boletos e empréstimos**. Novo filtro `kind=EMPRESTIMO` e filtro
   `loan_status` independente de `status`; constantes `REPORT_KINDS`/`REPORT_KIND_LABELS`
@@ -668,6 +683,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   `node scripts/verify_all.mjs`.
 
 ### Entregue na Etapa 8 ✅
+
 - **Excel em todas as listagens**: botão “Exportar Excel” em Clientes, Cheques,
   Boletos, Operações, Recebimentos, Empréstimos, Usuários e Auditoria. Novo blueprint
   `/api/export`, serviço `list_exports.py` (openpyxl) e componente `ExportXlsxButton`.
@@ -699,6 +715,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   A migração `a7c4e1b9d2f3` foi aplicada no banco de desenvolvimento.
 
 ### Pendências conhecidas / observações
+
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
   credenciais no ambiente); a construção da mensagem, o caminho de envio e a tolerância
   a falhas estão cobertos por testes.
@@ -709,7 +726,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   ao `origin/main`. O push usa Git Credential Manager; a conta `ClaudionorPeixinho`
   não tem escrita no repositório — é preciso autenticar como
   `cspsistemasdigital-fish` (`git credential-manager github login --force --username
-  cspsistemasdigital-fish`).
+cspsistemasdigital-fish`).
 - Sem linter/formatter configurado no frontend (`npm run lint` é um placeholder).
 - WhatsApp: o sistema apenas **gera o texto revisável** e abre o `wa.me` — não há
   disparo automático nem armazenamento de conversas (decisão intencional).
@@ -743,6 +760,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
   validados por `tests/test_list_exports.py`.
 
 ### Próximos passos recomendados (melhorias futuras, mediante autorização)
+
 1. **Validar SMTP real** com um provedor transacional (SPF/DKIM, bounce handling) e
    testar em produção tanto a recuperação de senha quanto o envio do relatório de
    empréstimos.
@@ -762,7 +780,7 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 9. **Checagens de UI para a Etapa 8** no smoke/fluxos (botões de Excel, aba de backup,
    assistente por texto e fila de fotos), hoje cobertos apenas por testes de API.
 10. **Agendador de backup externo** (cron/Kubernetes CronJob) se a operação migrar
-   para múltiplas instâncias, evitando backups duplicados por processo.
+    para múltiplas instâncias, evitando backups duplicados por processo.
 
 ---
 
