@@ -1,8 +1,9 @@
-"""Transactional e-mail delivery (password recovery).
+"""Transactional e-mail delivery (password recovery and report sharing).
 
 Delivery only happens when SMTP is configured (`MAIL_SERVER`). The system never
-sends marketing e-mail and never includes financial data in messages. In
-development the reset token may also be returned by the API when
+sends marketing e-mail. Sending a report always requires an explicit action of
+the user (the address is typed by him and the message text is generated on
+request). In development the reset token may also be returned by the API when
 `EXPOSE_RESET_TOKEN=true`; that flag is always false in production.
 """
 from __future__ import annotations
@@ -47,12 +48,19 @@ def build_reset_email(to_email: str, name: str, reset_url: str) -> EmailMessage:
     return message
 
 
-def send_password_reset_email(to_email: str, name: str, reset_url: str) -> bool:
-    """Try to deliver the reset link. Returns False when SMTP is not configured."""
+def send_text_email(to_email: str, subject: str, body: str, name: str | None = None) -> bool:
+    """Send a plain-text message. Returns False when SMTP is not configured."""
     if not mail_is_configured():
         return False
 
-    message = build_reset_email(to_email, name, reset_url)
+    message = EmailMessage()
+    message["Subject"] = subject
+    message["From"] = current_app.config.get(
+        "MAIL_DEFAULT_SENDER", "FACTOR PRO <no-reply@factorpro.com.br>"
+    )
+    message["To"] = formataddr((name or to_email, to_email))
+    message.set_content(body)
+
     host = current_app.config["MAIL_SERVER"]
     port = int(current_app.config.get("MAIL_PORT", 587))
     timeout = int(current_app.config.get("MAIL_TIMEOUT_SECONDS", 10))
@@ -70,6 +78,19 @@ def send_password_reset_email(to_email: str, name: str, reset_url: str) -> bool:
             _authenticate(server)
             server.send_message(message)
     return True
+
+
+def send_password_reset_email(to_email: str, name: str, reset_url: str) -> bool:
+    """Try to deliver the reset link. Returns False when SMTP is not configured."""
+    if not mail_is_configured():
+        return False
+    message = build_reset_email(to_email, name, reset_url)
+    return send_text_email(
+        to_email,
+        message["Subject"],
+        message.get_content(),
+        name,
+    )
 
 
 def _authenticate(server: smtplib.SMTP) -> None:

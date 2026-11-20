@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
+import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import DocumentsTable from '../documents/DocumentsTable'
 import EmptyState from '../ui/EmptyState'
 import ClientSelect from '../form/ClientSelect'
@@ -103,9 +104,17 @@ export default function DocumentsListPage({ config }) {
   const hasFilters = Boolean(search || status || clientId || activeAdvanced)
   const selectedClientId = clientId ? Number(clientId) : null
 
+  const exportParams = { sort, order }
+  ;['search', 'status', 'client_id', 'bank', 'date_from', 'date_to', 'due_from', 'due_to'].forEach((key) => {
+    if (get(key)) exportParams[key] = get(key)
+  })
+  if (get('overdue') === '1') exportParams.overdue = 1
+  if (get('divergent') === '1') exportParams.divergent = 1
+
   return (
     <div className="page">
       <PageHeader title={title} subtitle={subtitle} icon={icon}>
+        <ExportXlsxButton resource={kind === 'CHEQUE' ? 'cheques' : 'boletos'} params={exportParams} />
         <button type="button" className="btn btn-light" onClick={load} disabled={loading}>
           <i className={`bi ${loading ? 'arrow-repeat spin' : 'arrow-clockwise'}`} /> Atualizar
         </button>

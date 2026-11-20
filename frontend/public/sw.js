@@ -1,37 +1,19 @@
 /* FACTOR PRO service worker
- * Caches only the static application shell. Financial data (/api/*), the
- * dynamic brand manifest and the uploaded logo are ALWAYS network-only.
- * The offline page intentionally uses generic wording: the service worker has
- * no access to BrandContext, so no brand name is embedded here.
+ * Caches only static application shell assets. Financial data (API responses)
+ * is never cached - every request to /api is network-only.
  */
-const VERSION = 'factorpro-v1.3.0'
+const VERSION = 'factorpro-v1.5.0'
 const SHELL_CACHE = `${VERSION}-shell`
 const ASSET_CACHE = `${VERSION}-assets`
 const SHELL_ASSETS = [
   '/',
   '/index.html',
+  '/manifest.webmanifest',
   '/favicon.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
   '/icons/icon-maskable-512.png',
-  '/icons/apple-touch-icon.png',
 ]
-
-/* Never cached: API/dados, manifesto e logo dinâmicos (servidos pelo Flask). */
-function isNetworkOnly(url) {
-  const path = url.pathname
-  return (
-    path === '/api' ||
-    path.startsWith('/api/') ||
-    path === '/manifest.webmanifest' ||
-    path === '/brand' ||
-    path.startsWith('/brand/')
-  )
-}
-
-function isCacheableAsset(url) {
-  return /\.(js|css|png|svg|webp|woff2?|ttf|ico)$/i.test(url.pathname)
-}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -58,35 +40,33 @@ self.addEventListener('activate', (event) => {
   )
 })
 
+function isApiRequest(url) {
+  return url.pathname.startsWith('/api/')
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
-  if (isNetworkOnly(url)) return // network-only: dados, manifesto e logo
+  if (isApiRequest(url)) return // never cache financial data
 
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
-            const copy = response.clone()
-            caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy))
-          }
+          const copy = response.clone()
+          caches.open(SHELL_CACHE).then((cache) => cache.put('/index.html', copy.clone()))
           return response
         })
         .catch(async () => {
           const cached = await caches.match('/index.html')
           if (cached) return cached
           return new Response(
-            '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">' +
-              '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' +
-              '<title>Aplicativo indisponível</title></head>' +
-              '<body style="font-family:system-ui,sans-serif;padding:2rem;background:#F5F1E8;color:#1F2A25">' +
-              '<h1>Aplicativo indisponível</h1>' +
-              '<p>Sem conexão e sem uma versão salva neste dispositivo. ' +
-              'Conecte-se à internet e tente novamente.</p></body></html>',
+            '<!doctype html><html lang="pt-BR"><body style="font-family:sans-serif;padding:2rem">' +
+              '<h1>Aplicativo Financeiro</h1><p>Você está sem conexão. Conecte-se à internet para acessar os dados financeiros.</p>' +
+              '</body></html>',
             { headers: { 'Content-Type': 'text/html; charset=utf-8' } },
           )
         }),
@@ -98,7 +78,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       const network = fetch(request)
         .then((response) => {
-          if (response.ok && isCacheableAsset(new URL(request.url))) {
+          if (response.ok && new URL(request.url).pathname.match(/\.(js|css|png|svg|woff2?|ttf|ico)$/)) {
             const copy = response.clone()
             caches.open(ASSET_CACHE).then((cache) => cache.put(request, copy))
           }

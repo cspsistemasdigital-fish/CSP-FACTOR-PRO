@@ -23,6 +23,8 @@ const NAV_SECTIONS = [
     items: [
       { to: '/operacoes', label: 'Operações', icon: 'bi-arrow-left-right' },
       { to: '/recebimentos', label: 'Recebimentos', icon: 'bi-cash-coin' },
+      { to: '/emprestimos', label: 'Empréstimos', icon: 'bi-cash-stack' },
+      { to: '/emprestimos/relatorio', label: 'Rel. Empréstimos', icon: 'bi-bar-chart-line' },
       { to: '/relatorios', label: 'Relatórios', icon: 'bi-graph-up-arrow' },
     ],
   },
@@ -125,7 +127,7 @@ export default function Sidebar({ collapsed, mobileOpen, onNavigate }) {
         {!collapsed && (
           <div className="sidebar-version">
             <span>{appName}</span>
-            <span>v1.3 · Edição executiva</span>
+            <span>v1.6 · Etapa 8</span>
           </div>
         )}
       </div>

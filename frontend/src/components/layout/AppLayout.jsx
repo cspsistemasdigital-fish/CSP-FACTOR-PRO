@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Topbar from './Topbar'
+import AssistantWidget from './AssistantWidget'
 import GlobalAlerts from './GlobalAlerts'
 
 export default function AppLayout() {
@@ -50,6 +51,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <AssistantWidget />
     </div>
   )
 }

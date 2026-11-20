@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from ..extensions import db
-from ..models import DocumentKind, DocumentStatus, ReportFilter
+from ..models import REPORT_KINDS, DocumentStatus, LoanStatus, ReportFilter
 from ..utils.validators import (
     ValidationError,
     clean_text,
@@ -49,12 +49,16 @@ def normalize_saved_filters(raw) -> dict:
         client_id = None
 
     kind = (clean_text(raw.get("kind"), 20) or "").upper() or None
-    if kind and kind not in DocumentKind.ALL:
-        errors["kind"] = "Tipo de título inválido."
+    if kind and kind not in REPORT_KINDS:
+        errors["kind"] = "Tipo inválido."
 
     status = (clean_text(raw.get("status"), 20) or "").upper() or None
     if status and status not in DocumentStatus.ALL:
         errors["status"] = "Situação inválida."
+
+    loan_status = (clean_text(raw.get("loan_status"), 20) or "").upper() or None
+    if loan_status and loan_status not in LoanStatus.ALL:
+        errors["loan_status"] = "Situação de empréstimo inválida."
 
     search = clean_text(raw.get("search"), MAX_SEARCH_LENGTH)
     if search and len(str(raw.get("search")).strip()) > MAX_SEARCH_LENGTH:
@@ -80,6 +84,8 @@ def normalize_saved_filters(raw) -> dict:
         filters["kind"] = kind
     if status:
         filters["status"] = status
+    if loan_status:
+        filters["loan_status"] = loan_status
     if _as_bool(raw.get("overdue")):
         filters["overdue"] = True
     if search:

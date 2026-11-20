@@ -18,10 +18,15 @@ from ..utils.security import auth_required
 from .documents_utils import (
     document_history,
     download_attachment,
+    download_photo,
     get_document_or_none,
+    get_photo_or_none,
     list_banks,
+    list_photos,
     remove_attachment,
+    remove_photo,
     upload_attachment,
+    upload_photos,
 )
 
 bp = Blueprint("boletos", __name__, url_prefix="/api/boletos")
@@ -145,3 +150,45 @@ def delete_boleto_attachment(boleto_id: int):
     if not boleto:
         return error("Boleto não encontrado.", 404)
     return remove_attachment(boleto, "boleto", g.current_user)
+
+
+@bp.get("/<int:boleto_id>/photos")
+@auth_required()
+def list_boleto_photos(boleto_id: int):
+    boleto = get_document_or_none(Boleto, boleto_id)
+    if not boleto:
+        return error("Boleto não encontrado.", 404)
+    return list_photos(boleto, "BOLETO")
+
+
+@bp.post("/<int:boleto_id>/photos")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def upload_boleto_photos(boleto_id: int):
+    boleto = get_document_or_none(Boleto, boleto_id)
+    if not boleto:
+        return error("Boleto não encontrado.", 404)
+    return upload_photos(boleto, "BOLETO", "boleto", g.current_user)
+
+
+@bp.get("/<int:boleto_id>/photos/<int:attachment_id>")
+@auth_required()
+def download_boleto_photo(boleto_id: int, attachment_id: int):
+    boleto = get_document_or_none(Boleto, boleto_id)
+    if not boleto:
+        return error("Boleto não encontrado.", 404)
+    photo = get_photo_or_none(boleto, "BOLETO", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return download_photo(boleto, photo)
+
+
+@bp.delete("/<int:boleto_id>/photos/<int:attachment_id>")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def delete_boleto_photo(boleto_id: int, attachment_id: int):
+    boleto = get_document_or_none(Boleto, boleto_id)
+    if not boleto:
+        return error("Boleto não encontrado.", 404)
+    photo = get_photo_or_none(boleto, "BOLETO", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return remove_photo(boleto, photo, "boleto", g.current_user)

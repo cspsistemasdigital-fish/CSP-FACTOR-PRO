@@ -18,6 +18,7 @@ gunicorn==23.0.0
 # Reports / exports (Etapa 3)
 reportlab==4.2.5
 openpyxl==3.1.5
+Pillow>=11.0.0  # required by openpyxl to embed the company logo in XLSX exports
 
 # Production hardening (Etapa 4): optional shared login throttling
 redis==5.2.1

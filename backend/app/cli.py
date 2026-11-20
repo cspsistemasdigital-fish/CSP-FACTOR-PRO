@@ -327,3 +327,15 @@ def register_cli(app):
         """Create all tables (development shortcut; use 'flask db upgrade' otherwise)."""
         db.create_all()
         click.echo("Tabelas criadas/verificadas com sucesso.")
+
+    @app.cli.command("backup")
+    @click.option("--now", is_flag=True, help="Cria o backup mesmo se o diário já tiver rodado hoje.")
+    def backup_command(now: bool):
+        """Create a safety backup (schedule it with cron/Task Scheduler if preferred)."""
+        from .services.backup import create_backup, run_scheduled_backup_if_due
+
+        try:
+            result = create_backup() if now else (run_scheduled_backup_if_due() or create_backup())
+        except Exception as exc:  # pragma: no cover - depends on the database engine
+            raise click.ClickException(f"Falha ao criar backup: {exc}") from exc
+        click.echo(f"Backup criado: {result['name']} ({result['size']} bytes)")

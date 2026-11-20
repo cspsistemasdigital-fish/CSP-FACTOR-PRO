@@ -201,6 +201,10 @@ export function statusMeta(status, overdue = false) {  if (status === 'EM_ABERTO
       return { label: 'Aberta', variant: 'warning', icon: 'bi-folder2-open' }
     case 'FECHADA':
       return { label: 'Fechada', variant: 'success', icon: 'bi-lock-fill' }
+    case 'QUITADA':
+      return { label: 'Quitada', variant: 'success', icon: 'bi-check-circle-fill' }
+    case 'CANCELADA':
+      return { label: 'Cancelada', variant: 'neutral', icon: 'bi-slash-circle' }
     default:
       return { label: status || '—', variant: 'neutral', icon: 'bi-circle' }
   }

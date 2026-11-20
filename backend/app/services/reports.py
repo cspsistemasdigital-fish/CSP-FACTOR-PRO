@@ -24,9 +24,14 @@ from ..models import (
     Client,
     DocumentKind,
     DocumentStatus,
+    Installment,
+    Loan,
+    LoanStatus,
     Operation,
     OperationStatus,
     Receipt,
+    REPORT_KIND_LABELS,
+    REPORT_KINDS,
 )
 from ..models.base import money
 from ..utils.validators import (
@@ -37,7 +42,10 @@ from ..utils.validators import (
     parse_int,
 )
 from .audit import log_action
+from .branding import app_display_name, brand_logo_path, company_display_name
 from .clients import exposure_map
+from .loans import serialize_loan
+from .loans_report import _collect_loans, _installment_item
 
 MAX_EXPORT_ROWS = 5000
 PDF_ROW_LIMIT = 400
@@ -71,12 +79,16 @@ def parse_report_filters(args) -> dict:
         errors["date_to"] = "A data inicial não pode ser maior que a data final."
 
     kind = (args.get("kind") or args.get("document_kind") or "").strip().upper() or None
-    if kind and kind not in DocumentKind.ALL:
-        errors["kind"] = "Tipo de título inválido."
+    if kind and kind not in REPORT_KINDS:
+        errors["kind"] = "Tipo inválido."
 
     status = (args.get("status") or "").strip().upper() or None
     if status and status not in DocumentStatus.ALL:
         errors["status"] = "Situação inválida."
+
+    loan_status = (args.get("loan_status") or "").strip().upper() or None
+    if loan_status and loan_status not in LoanStatus.ALL:
+        errors["loan_status"] = "Situação de empréstimo inválida."
 
     if errors:
         raise ValidationError(errors)
@@ -87,6 +99,7 @@ def parse_report_filters(args) -> dict:
         "client_id": client_id,
         "kind": kind,
         "status": status,
+        "loan_status": loan_status,
         "overdue": str(args.get("overdue") or "").lower() in ("1", "true", "sim", "yes"),
         "search": clean_text(args.get("search"), 120),
     }
@@ -99,6 +112,7 @@ def filters_as_dict(filters: dict) -> dict:
         "client_id": filters["client_id"],
         "kind": filters["kind"],
         "status": filters["status"],
+        "loan_status": filters.get("loan_status"),
         "overdue": filters["overdue"],
         "search": filters["search"],
     }
@@ -310,12 +324,33 @@ def _month_keys(filters: dict) -> list[str]:
 # Report assembly
 # ---------------------------------------------------------------------------
 def build_report(filters: dict) -> dict:
-    documents = _collect_documents(filters)
-    received = _received_map()
+    # EMPRESTIMO has no documents/operations/receipts; an empty kind means all.
+    include_documents = filters["kind"] in (None, DocumentKind.CHEQUE, DocumentKind.BOLETO)
+    include_loans = filters["kind"] in (None, "EMPRESTIMO")
+
+    documents = _collect_documents(filters) if include_documents else []
+    received = _received_map() if include_documents else {}
     document_items = [_document_item(document, received) for document in documents]
-    receipts = _collect_receipts(filters)
+    receipts = _collect_receipts(filters) if include_documents else []
     receipt_items = [_receipt_item(receipt, received) for receipt in receipts]
-    operations = [_operation_item(operation) for operation in _collect_operations(filters)]
+    operations = (
+        [_operation_item(operation) for operation in _collect_operations(filters)]
+        if include_documents
+        else []
+    )
+
+    loan_filters = {**filters, "status": filters.get("loan_status")}
+    loans = _collect_loans(loan_filters) if include_loans else []
+    loan_items = [serialize_loan(loan, include_items=False) for loan in loans]
+    installment_items = (
+        [
+            _installment_item(item, loan)
+            for loan in loans
+            for item in sorted(loan.active_installments(), key=lambda value: (value.due_date, value.number))
+        ]
+        if include_loans
+        else []
+    )
 
     totals = {
         "documents": len(document_items),
@@ -330,17 +365,42 @@ def build_report(filters: dict) -> dict:
         "cancelled": 0.0,
         "received": 0.0,
         "divergences": 0,
+        "loans": len(loan_items),
+        "loan_amount": 0.0,
+        "loan_received": 0.0,
+        "profit": 0.0,
+        "loan_open": 0.0,
+        "loan_divergences": 0,
+        "installments": len(installment_items),
+        "overdue_installments": 0,
     }
     by_kind = {
-        kind: {"kind": kind, "label": label, "count": 0, "nominal": 0.0, "net": 0.0, "open": 0.0}
-        for kind, label in DocumentKind.LABELS.items()
+        kind: {
+            "kind": kind,
+            "label": label,
+            "count": 0,
+            "nominal": 0.0,
+            "net": 0.0,
+            "open": 0.0,
+            "loan_amount": 0.0,
+            "received_amount": 0.0,
+            "profit_amount": 0.0,
+        }
+        for kind, label in REPORT_KIND_LABELS.items()
     }
     by_status = {
         status: {"status": status, "label": DocumentStatus.LABELS[status], "count": 0, "nominal": 0.0, "net": 0.0}
         for status in DocumentStatus.ALL
     }
+    by_loan_status = {
+        status: {"status": status, "label": label, "count": 0, "loan_amount": 0.0, "profit_amount": 0.0}
+        for status, label in LoanStatus.LABELS.items()
+    }
     per_client = defaultdict(
         lambda: {"documents": 0, "nominal": 0.0, "net": 0.0, "open": 0.0, "overdue": 0.0, "received": 0.0}
+    )
+    per_client_loans = defaultdict(
+        lambda: {"loans": 0, "loan_amount": 0.0, "received_amount": 0.0, "profit_amount": 0.0, "installments": 0}
     )
 
     today = date.today()
@@ -390,10 +450,43 @@ def build_report(filters: dict) -> dict:
         if item["client_id"] in per_client:
             per_client[item["client_id"]]["received"] += float(item["amount"] or 0)
 
-    clients = _client_rows(filters, per_client)
-    active_clients = [row for row in clients if row["period_documents"] or row["open_documents"]]
+    for loan, item in zip(loans, loan_items):
+        loan_amount = float(item.get("loan_amount") or 0)
+        loan_received = float(item.get("received_amount") or 0)
+        profit = float(item.get("profit_amount") or 0)
+        loan_totals = item.get("totals") or {}
+        totals["loan_amount"] += loan_amount
+        totals["loan_received"] += loan_received
+        totals["profit"] += profit
+        totals["loan_open"] += float(loan_totals.get("open_amount") or 0)
+        totals["overdue_installments"] += int(loan_totals.get("overdue_installments") or 0)
+        if item.get("has_divergence"):
+            totals["loan_divergences"] += 1
 
-    monthly = _monthly_series(filters, document_items, receipt_items)
+        bucket = by_kind["EMPRESTIMO"]
+        bucket["count"] += 1
+        bucket["loan_amount"] += loan_amount
+        bucket["received_amount"] += loan_received
+        bucket["profit_amount"] += profit
+
+        status_bucket = by_loan_status[loan.status]
+        status_bucket["count"] += 1
+        status_bucket["loan_amount"] += loan_amount
+        status_bucket["profit_amount"] += profit
+
+        client_bucket = per_client_loans[loan.client_id]
+        client_bucket["loans"] += 1
+        client_bucket["loan_amount"] += loan_amount
+        client_bucket["received_amount"] += loan_received
+        client_bucket["profit_amount"] += profit
+        client_bucket["installments"] += int(loan_totals.get("installments") or 0)
+
+    clients = _client_rows(filters, per_client, per_client_loans)
+    active_clients = [
+        row for row in clients if row["period_documents"] or row["open_documents"] or row["period_loans"]
+    ]
+
+    monthly = _monthly_series(filters, document_items, receipt_items, loan_items)
 
     cards = {
         "clients_count": len(active_clients),
@@ -413,6 +506,14 @@ def build_report(filters: dict) -> dict:
         "operations_net": round(sum(float(item["totals"]["net"] or 0) for item in operations), 2),
         "receipts_count": len(receipt_items),
         "receipts_total": round(sum(float(item["amount"] or 0) for item in receipt_items), 2),
+        "loans_count": totals["loans"],
+        "loan_amount_total": round(totals["loan_amount"], 2),
+        "loan_received_total": round(totals["loan_received"], 2),
+        "profit_total": round(totals["profit"], 2),
+        "loan_open_total": round(totals["loan_open"], 2),
+        "loan_divergences_count": totals["loan_divergences"],
+        "installments_count": totals["installments"],
+        "overdue_installments": totals["overdue_installments"],
         "limits_available_total": round(sum(row["available_limit"] for row in clients), 2),
         "limits_exceeded_count": sum(1 for row in clients if row["limit_exceeded"]),
     }
@@ -424,16 +525,21 @@ def build_report(filters: dict) -> dict:
         "cards": cards,
         "by_kind": list(by_kind.values()),
         "by_status": list(by_status.values()),
+        "by_loan_status": list(by_loan_status.values()),
         "by_month": monthly,
         "clients": clients,
         "documents": document_items,
         "operations": operations,
         "receipts": receipt_items,
+        "loans": loan_items,
+        "installments": installment_items,
         "counts": {
             "clients": len(clients),
             "documents": len(document_items),
             "operations": len(operations),
             "receipts": len(receipt_items),
+            "loans": len(loan_items),
+            "installments": len(installment_items),
         },
     }
 
@@ -460,7 +566,7 @@ def _document_values_by_item(item: dict) -> dict:
     }
 
 
-def _client_rows(filters: dict, per_client: dict) -> list[dict]:
+def _client_rows(filters: dict, per_client: dict, per_client_loans: dict | None = None) -> list[dict]:
     query = Client.query.filter(Client.is_deleted.is_(False))
     if filters["client_id"]:
         query = query.filter(Client.id == filters["client_id"])
@@ -474,6 +580,7 @@ def _client_rows(filters: dict, per_client: dict) -> list[dict]:
         open_amount = Decimal(exposure_row.get("open_amount") or 0)
         available = limit - open_amount
         period = per_client.get(client.id, {})
+        loan_period = (per_client_loans or {}).get(client.id, {})
         rows.append(
             {
                 "id": client.id,
@@ -501,15 +608,41 @@ def _client_rows(filters: dict, per_client: dict) -> list[dict]:
                 "period_open": round(period.get("open", 0.0), 2),
                 "period_overdue": round(period.get("overdue", 0.0), 2),
                 "period_received": round(period.get("received", 0.0), 2),
+                "period_loans": loan_period.get("loans", 0),
+                "period_loan_amount": round(loan_period.get("loan_amount", 0.0), 2),
+                "period_loan_received": round(loan_period.get("received_amount", 0.0), 2),
+                "period_profit": round(loan_period.get("profit_amount", 0.0), 2),
+                "period_installments": loan_period.get("installments", 0),
             }
         )
-    rows.sort(key=lambda row: (-row["period_net"], -row["open_amount"], row["name"]))
+    rows.sort(
+        key=lambda row: (
+            -(row["period_net"] + row["period_loan_amount"]),
+            -row["open_amount"],
+            row["name"],
+        )
+    )
     return rows
 
 
-def _monthly_series(filters: dict, documents: list[dict], receipts: list[dict]) -> list[dict]:
+def _monthly_series(filters: dict, documents: list[dict], receipts: list[dict], loans: list[dict] | None = None) -> list[dict]:
     keys = _month_keys(filters)
-    index = {key: {"month": key, "label": _month_label(key), "documents": 0, "nominal": 0.0, "net": 0.0, "received": 0.0, "receipts": 0} for key in keys}
+    index = {
+        key: {
+            "month": key,
+            "label": _month_label(key),
+            "documents": 0,
+            "nominal": 0.0,
+            "net": 0.0,
+            "received": 0.0,
+            "receipts": 0,
+            "loans": 0,
+            "loan_amount": 0.0,
+            "loan_received": 0.0,
+            "profit_amount": 0.0,
+        }
+        for key in keys
+    }
     for item in documents:
         value = item.get("operation_date")
         if not value:
@@ -531,12 +664,27 @@ def _monthly_series(filters: dict, documents: list[dict], receipts: list[dict]) 
         bucket = index[key]
         bucket["receipts"] += 1
         bucket["received"] += float(item.get("amount") or 0)
+    for item in loans or []:
+        value = item.get("loan_date")
+        if not value:
+            continue
+        key = value[:7]
+        if key not in index:
+            continue
+        bucket = index[key]
+        bucket["loans"] += 1
+        bucket["loan_amount"] += float(item.get("loan_amount") or 0)
+        bucket["loan_received"] += float(item.get("received_amount") or 0)
+        bucket["profit_amount"] += float(item.get("profit_amount") or 0)
     return [
         {
             **bucket,
             "nominal": round(bucket["nominal"], 2),
             "net": round(bucket["net"], 2),
             "received": round(bucket["received"], 2),
+            "loan_amount": round(bucket["loan_amount"], 2),
+            "loan_received": round(bucket["loan_received"], 2),
+            "profit_amount": round(bucket["profit_amount"], 2),
         }
         for bucket in index.values()
     ]
@@ -573,46 +721,71 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
 
     today = date.today()
     query_common = dict(is_deleted=False, client_id=client_id)
+    include_documents = filters.get("kind") in (None, DocumentKind.CHEQUE, DocumentKind.BOLETO)
+    include_loans = filters.get("kind") in (None, "EMPRESTIMO")
+
     documents = []
-    for model, kind in ((Cheque, DocumentKind.CHEQUE), (Boleto, DocumentKind.BOLETO)):
-        if filters.get("kind") and filters["kind"] != kind:
-            continue
-        query = model.query.filter_by(**query_common).filter(model.status.in_(DocumentStatus.PENDING))
-        if filters.get("overdue"):
-            query = query.filter(model.due_date < today)
-        documents.extend(query.all())
-    documents.sort(key=lambda doc: (doc.due_date or date.max, doc.code))
+    if include_documents:
+        for model, kind in ((Cheque, DocumentKind.CHEQUE), (Boleto, DocumentKind.BOLETO)):
+            if filters.get("kind") and filters["kind"] != kind:
+                continue
+            query = model.query.filter_by(**query_common).filter(model.status.in_(DocumentStatus.PENDING))
+            if filters.get("overdue"):
+                query = query.filter(model.due_date < today)
+            documents.extend(query.all())
+        documents.sort(key=lambda doc: (doc.due_date or date.max, doc.code))
+
+    installments = []
+    if include_loans:
+        loan_filters = {**filters, "status": filters.get("loan_status")}
+        for loan in _collect_loans(loan_filters):
+            for item in loan.active_installments():
+                if item.status not in DocumentStatus.PENDING:
+                    continue
+                if filters.get("overdue") and (not item.due_date or item.due_date >= today):
+                    continue
+                installments.append((loan, item))
+        installments.sort(key=lambda pair: (pair[1].due_date or date.max, pair[0].code))
 
     received = _received_map()
-    shown = documents[:20]
+    shown_documents = documents[:20]
+    shown_installments = installments[:20]
     lines = []
-    for document in shown:
+    for document in shown_documents:
         already = received.get((document.__class__.__name__.upper(), document.id), Decimal("0.00"))
         remaining = Decimal(document.net_amount or 0) - already
         lines.append(
             f"• {document.code} — venc. {_date_br(document.due_date)} — {format_brl(remaining)}"
         )
-    if len(documents) > len(shown):
-        lines.append(f"… e mais {len(documents) - len(shown)} título(s).")
+    for loan, item in shown_installments:
+        lines.append(
+            f"• {loan.code} · {item.number}ª parcela — venc. {_date_br(item.due_date)} — "
+            f"{format_brl(item.amount)}"
+        )
+    hidden = len(documents) - len(shown_documents) + len(installments) - len(shown_installments)
+    if hidden > 0:
+        lines.append(f"… e mais {hidden} registro(s).")
 
     total = Decimal("0.00")
     for document in documents:
         already = received.get((document.__class__.__name__.upper(), document.id), Decimal("0.00"))
         total += Decimal(document.net_amount or 0) - already
+    for _, item in installments:
+        total += Decimal(item.amount or 0)
 
     company = get_company_settings()
     signature = (company.get("company_signature") or "").strip()
     first_name = (client.name or "").split(" ")[0]
     header = f"Olá, {first_name}! Aqui é {company.get('company_name') or 'FACTOR PRO'}."
     body = (
-        f"Segue o resumo dos títulos em aberto de {client.name} "
+        f"Segue o resumo dos valores em aberto de {client.name} "
         f"({client.code}) em {_date_br(today)}:"
     )
     if lines:
-        title = "Títulos em aberto:"
+        title = "Valores em aberto:"
         closing = f"Total em aberto: {format_brl(total)}"
     else:
-        title = "Não encontrei títulos em aberto para este cliente."
+        title = "Não encontrei valores em aberto para este cliente."
         closing = ""
 
     message = "\n\n".join(
@@ -639,6 +812,8 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
         "phone": digits or None,
         "url": url,
         "documents_count": len(documents),
+        "loans_count": len({loan.id for loan, _ in installments}),
+        "installments_count": len(installments),
         "total": money(total),
         "documents": [
             {
@@ -650,14 +825,26 @@ def build_whatsapp(client_id: int, filters: dict) -> dict:
             }
             for document in documents
         ],
+        "installments": [
+            {
+                "id": item.id,
+                "loan_code": loan.code,
+                "number": item.number,
+                "due_date": item.due_date.isoformat() if item.due_date else None,
+                "amount": money(item.amount),
+            }
+            for loan, item in installments
+        ],
     }
 
 
 # ---------------------------------------------------------------------------
 # Exports
 # ---------------------------------------------------------------------------
-def export_filename(extension: str) -> str:
-    return f"relatorio-factor-pro-{datetime.now():%Y%m%d-%H%M}.{extension}"
+def export_filename(extension: str, company: dict | None = None) -> str:
+    from .branding import export_slug
+
+    return f"relatorio-{export_slug(company)}-{datetime.now():%Y%m%d-%H%M}.{extension}"
 
 
 def audit_export(user, file_format: str, report: dict) -> None:
@@ -677,7 +864,9 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import mm
+    from reportlab.lib.utils import ImageReader
     from reportlab.platypus import (
+        Image,
         PageBreak,
         Paragraph,
         SimpleDocTemplate,
@@ -685,6 +874,16 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         Table,
         TableStyle,
     )
+
+    company_name = company_display_name(company)
+    display_name = app_display_name(company)
+    logo_path = brand_logo_path(company)
+    logo_size = None
+    if logo_path:
+        try:
+            logo_size = ImageReader(logo_path).getSize()
+        except Exception:  # pragma: no cover - unreadable logo falls back to text
+            logo_path = None
 
     buffer = BytesIO()
     page_size = landscape(A4)
@@ -694,9 +893,9 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         leftMargin=12 * mm,
         rightMargin=12 * mm,
         topMargin=12 * mm,
-        bottomMargin=14 * mm,
-        title="Relatório FACTOR PRO",
-        author=company.get("company_name") or "FACTOR PRO",
+        bottomMargin=20 * mm,
+        title=f"Relatório — {company_name}",
+        author=company_name,
     )
     styles = getSampleStyleSheet()
     normal = ParagraphStyle("FpNormal", parent=styles["Normal"], fontName="Helvetica", fontSize=8, leading=10)
@@ -718,7 +917,14 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
     danger = colors.HexColor("#C9463D")
 
     story = []
-    company_name = company.get("company_name") or "FACTOR PRO"
+    if logo_path and logo_size:
+        try:
+            logo_height = 18 * mm
+            logo_width = logo_height * logo_size[0] / logo_size[1]
+            story.append(Image(logo_path, width=logo_width, height=logo_height))
+            story.append(Spacer(1, 4))
+        except Exception:  # pragma: no cover - never break an export for a logo
+            pass
     story.append(Paragraph(escape(company_name), brand))
     contact_bits = [
         company.get("company_document"),
@@ -749,6 +955,10 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
         ("Vencidos", format_brl(cards["overdue_total"])),
         ("Recebido no período", format_brl(cards["receipts_total"])),
         ("Operações", f"{cards['operations_count']}"),
+        ("Empréstimos", f"{cards['loans_count']}"),
+        ("Valor emprestado", format_brl(cards["loan_amount_total"])),
+        ("Lucro informado", format_brl(cards["profit_total"])),
+        ("Parcelas", f"{cards['installments_count']}"),
     ]
     metric_cells = [
         [
@@ -862,6 +1072,68 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
             )
         )
 
+    # Empréstimos e parcelas --------------------------------------------------
+    if report["loans"] or report["installments"]:
+        story.append(PageBreak())
+        story.append(Paragraph("Empréstimos", heading))
+        rows = [
+            header_row(["Empréstimo", "Cliente", "Data", "Emprestado", "Recebido", "Lucro", "Situação"])
+        ]
+        for item in report["loans"][:PDF_ROW_LIMIT]:
+            client_name = (item.get("client") or {}).get("name") or "—"
+            rows.append(
+                [
+                    Paragraph(escape(item["code"]), small),
+                    Paragraph(escape(client_name), small),
+                    Paragraph(escape(_date_br(item.get("loan_date"))), small),
+                    money_paragraph(item.get("loan_amount")),
+                    money_paragraph(item.get("received_amount")),
+                    money_paragraph(item.get("profit_amount")),
+                    Paragraph(escape(item.get("status_label") or item.get("status") or "—"), small),
+                ]
+            )
+        if len(rows) == 1:
+            rows.append([Paragraph("Nenhum empréstimo encontrado com os filtros informados.", small), "", "", "", "", "", ""])
+        loan_table = Table(
+            rows,
+            colWidths=[26 * mm, 68 * mm, 22 * mm, 34 * mm, 34 * mm, 30 * mm, 25 * mm],
+            repeatRows=1,
+        )
+        loan_table.setStyle(table_style())
+        story.append(loan_table)
+        story.append(Spacer(1, 10))
+
+        story.append(Paragraph("Parcelas", heading))
+        rows = [
+            header_row(["Empréstimo", "Cliente", "Parcela", "Vencimento", "Valor", "Situação"])
+        ]
+        for item in report["installments"][:PDF_ROW_LIMIT]:
+            rows.append(
+                [
+                    Paragraph(escape(item.get("loan_code") or "—"), small),
+                    Paragraph(escape(item.get("client_name") or "—"), small),
+                    Paragraph(str(item.get("number") or ""), small),
+                    Paragraph(escape(_date_br(item.get("due_date"))), small),
+                    money_paragraph(item.get("amount")),
+                    Paragraph(escape(item.get("status_label") or item.get("status") or "—"), small),
+                ]
+            )
+        if len(rows) == 1:
+            rows.append([Paragraph("Nenhuma parcela encontrada com os filtros informados.", small), "", "", "", "", ""])
+        installment_table = Table(
+            rows,
+            colWidths=[30 * mm, 85 * mm, 20 * mm, 28 * mm, 40 * mm, 36 * mm],
+            repeatRows=1,
+        )
+        installment_table.setStyle(table_style())
+        story.append(installment_table)
+        story.append(
+            Paragraph(
+                "Valores de empréstimo, recebido e lucro são informados pelo usuário; o sistema não calcula juros ou encargos.",
+                small,
+            )
+        )
+
     if report["operations"] or report["receipts"]:
         story.append(PageBreak())
         story.append(Paragraph("Operações", heading))
@@ -905,12 +1177,32 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
 
     def footer(canvas, document):
         canvas.saveState()
+        text_x = 12 * mm
+        if logo_path and logo_size:
+            try:
+                logo_height = 8 * mm
+                logo_width = min(logo_height * logo_size[0] / logo_size[1], 40 * mm)
+                canvas.drawImage(
+                    logo_path,
+                    12 * mm,
+                    10 * mm,
+                    width=logo_width,
+                    height=logo_height,
+                    preserveAspectRatio=True,
+                    anchor="sw",
+                    mask="auto",
+                )
+                text_x += logo_width + 4 * mm
+            except Exception:  # pragma: no cover - never break an export for a logo
+                pass
         canvas.setFont("Helvetica", 7)
         canvas.setFillColor(muted)
-        canvas.drawString(12 * mm, 7 * mm, f"FACTOR PRO · Relatório gerado em {datetime.now():%d/%m/%Y %H:%M}")
-        canvas.drawRightString(page_size[0] - 12 * mm, 7 * mm, f"Página {document.page}")
+        canvas.drawString(
+            text_x, 8 * mm, f"{display_name} · Relatório gerado em {datetime.now():%d/%m/%Y %H:%M}"
+        )
+        canvas.drawRightString(page_size[0] - 12 * mm, 8 * mm, f"Página {document.page}")
         canvas.setStrokeColor(grid)
-        canvas.line(12 * mm, 10 * mm, page_size[0] - 12 * mm, 10 * mm)
+        canvas.line(12 * mm, 19 * mm, page_size[0] - 12 * mm, 19 * mm)
         canvas.restoreState()
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
@@ -919,8 +1211,23 @@ def render_pdf(report: dict, company: dict, user) -> bytes:
 
 def render_xlsx(report: dict, company: dict) -> bytes:
     from openpyxl import Workbook
+    from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
+
+    company_name = company_display_name(company)
+    logo_path = brand_logo_path(company)
+
+    def add_logo(ws, anchor: str = "D1") -> None:
+        if not logo_path:
+            return
+        try:
+            image = XLImage(logo_path)
+            image.width = min(image.width, 220)
+            image.height = min(image.height, 64)
+            ws.add_image(image, anchor)
+        except Exception:  # pragma: no cover - never break an export for a logo
+            pass
 
     wb = Workbook()
     header_fill = PatternFill("solid", fgColor="123D32")
@@ -956,8 +1263,9 @@ def render_xlsx(report: dict, company: dict) -> bytes:
     # Resumo ---------------------------------------------------------------
     ws = wb.active
     ws.title = "Resumo"
-    ws["A1"] = company.get("company_name") or "FACTOR PRO"
+    ws["A1"] = company_name
     ws["A1"].font = title_font
+    add_logo(ws, "D1")
     ws["A2"] = "Relatório da carteira"
     ws["A2"].font = bold
     ws["A3"] = f"Período: {report['period_label']}"
@@ -981,6 +1289,14 @@ def render_xlsx(report: dict, company: dict) -> bytes:
         ("Divergências", cards["divergences_count"]),
         ("Limite disponível (clientes)", cards["limits_available_total"]),
         ("Clientes acima do limite", cards["limits_exceeded_count"]),
+        ("Empréstimos", cards["loans_count"]),
+        ("Valor emprestado", cards["loan_amount_total"]),
+        ("Recebido dos empréstimos", cards["loan_received_total"]),
+        ("Lucro informado", cards["profit_total"]),
+        ("Saldo em aberto dos empréstimos", cards["loan_open_total"]),
+        ("Parcelas", cards["installments_count"]),
+        ("Parcelas vencidas", cards["overdue_installments"]),
+        ("Empréstimos divergentes", cards["loan_divergences_count"]),
     ]
     ws["A6"] = "Indicador"
     ws["B6"] = "Valor"
@@ -1081,6 +1397,48 @@ def render_xlsx(report: dict, company: dict) -> bytes:
     widths(ws, [14, 14, 10, 40, 12, 17, 17, 15, 45])
     ws.freeze_panes = "A2"
     ws.auto_filter.ref = f"A1:I{max(len(rows) + 1, 1)}"
+
+    # Empréstimos -----------------------------------------------------------
+    ws = wb.create_sheet("Empréstimos")
+    headers = [
+        "Empréstimo", "Cliente", "Data", "Valor emprestado", "Valor recebido", "Lucro informado",
+        "Situação", "Divergente", "Parcelas", "Observações",
+    ]
+    ws.append(headers)
+    style_header(ws)
+    add_logo(ws, "L1")
+    rows = [
+        [
+            item["code"], (item.get("client") or {}).get("name") or "", _date_br(item.get("loan_date")),
+            item.get("loan_amount") or 0, item.get("received_amount") or 0, item.get("profit_amount") or 0,
+            item.get("status_label") or item.get("status") or "", "Sim" if item.get("has_divergence") else "Não",
+            (item.get("totals") or {}).get("installments", 0), item.get("notes") or "",
+        ]
+        for item in report["loans"]
+    ]
+    write_rows(ws, 2, rows, money_columns=(4, 5, 6))
+    widths(ws, [14, 40, 12, 18, 18, 18, 12, 12, 10, 45])
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:J{max(len(rows) + 1, 1)}"
+
+    # Parcelas --------------------------------------------------------------
+    ws = wb.create_sheet("Parcelas")
+    headers = ["Empréstimo", "Cliente", "Parcela", "Vencimento", "Valor", "Situação", "Vencida", "Observações"]
+    ws.append(headers)
+    style_header(ws)
+    add_logo(ws, "I1")
+    rows = [
+        [
+            item.get("loan_code") or "", item.get("client_name") or "", item.get("number"),
+            _date_br(item.get("due_date")), item.get("amount") or 0, item.get("status_label") or item.get("status") or "",
+            "Sim" if item.get("is_overdue") else "Não", item.get("notes") or "",
+        ]
+        for item in report["installments"]
+    ]
+    write_rows(ws, 2, rows, money_columns=(5,))
+    widths(ws, [14, 40, 10, 14, 18, 14, 10, 45])
+    ws.freeze_panes = "A2"
+    ws.auto_filter.ref = f"A1:H{max(len(rows) + 1, 1)}"
 
     buffer = BytesIO()
     wb.save(buffer)

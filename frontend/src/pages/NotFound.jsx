@@ -1,7 +1,9 @@
 import { Link, useLocation } from 'react-router-dom'
+import { useBrand } from '../context/BrandContext'
 
 export default function NotFound() {
   const location = useLocation()
+  const { appName } = useBrand()
 
   return (
     <div className="page">
@@ -12,7 +14,7 @@ export default function NotFound() {
         </span>
         <h2>Página não encontrada</h2>
         <p>
-          O endereço <code>{location.pathname}</code> não existe neste aplicativo ou foi movido.
+          O endereço <code>{location.pathname}</code> não existe no {appName} ou foi movido.
           Verifique o link ou volte para o dashboard.
         </p>
         <div className="notfound-actions">

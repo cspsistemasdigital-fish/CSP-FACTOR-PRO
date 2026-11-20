@@ -21,8 +21,13 @@ from ..utils.security import auth_required
 from ..utils.validators import ValidationError, parse_int
 from .documents_utils import (
     download_attachment,
+    download_photo,
+    get_photo_or_none,
+    list_photos,
     remove_attachment,
+    remove_photo,
     upload_attachment,
+    upload_photos,
 )
 
 bp = Blueprint("receipts", __name__, url_prefix="/api/receipts")
@@ -158,3 +163,45 @@ def remove_receipt_attachment(receipt_id: int):
     if not receipt:
         return error("Recebimento não encontrado.", 404)
     return remove_attachment(receipt, "receipt", g.current_user)
+
+
+@bp.get("/<int:receipt_id>/photos")
+@auth_required()
+def list_receipt_photos(receipt_id: int):
+    receipt = _get_or_none(receipt_id)
+    if not receipt:
+        return error("Recebimento não encontrado.", 404)
+    return list_photos(receipt, "RECEIPT")
+
+
+@bp.post("/<int:receipt_id>/photos")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def upload_receipt_photos(receipt_id: int):
+    receipt = _get_or_none(receipt_id)
+    if not receipt:
+        return error("Recebimento não encontrado.", 404)
+    return upload_photos(receipt, "RECEIPT", "receipt", g.current_user)
+
+
+@bp.get("/<int:receipt_id>/photos/<int:attachment_id>")
+@auth_required()
+def download_receipt_photo(receipt_id: int, attachment_id: int):
+    receipt = _get_or_none(receipt_id)
+    if not receipt:
+        return error("Recebimento não encontrado.", 404)
+    photo = get_photo_or_none(receipt, "RECEIPT", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return download_photo(receipt, photo)
+
+
+@bp.delete("/<int:receipt_id>/photos/<int:attachment_id>")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def delete_receipt_photo(receipt_id: int, attachment_id: int):
+    receipt = _get_or_none(receipt_id)
+    if not receipt:
+        return error("Recebimento não encontrado.", 404)
+    photo = get_photo_or_none(receipt, "RECEIPT", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return remove_photo(receipt, photo, "receipt", g.current_user)

@@ -48,6 +48,16 @@ function documentApi(base) {
     },
     attachmentUrl: (id) => `${base}/${id}/attachment`,
     removeAttachment: (id) => api.delete(`${base}/${id}/attachment`),
+    photos: (id) => api.get(`${base}/${id}/photos`),
+    uploadPhotos: (id, files) => {
+      const form = new FormData()
+      files.forEach((file) => form.append('files', file))
+      return api.post(`${base}/${id}/photos`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+    photoUrl: (id, photoId) => `${base}/${id}/photos/${photoId}`,
+    removePhoto: (id, photoId) => api.delete(`${base}/${id}/photos/${photoId}`),
   }
 }
 
@@ -62,6 +72,33 @@ export const operationsApi = {
   update: (id, payload) => api.put(`/operations/${id}`, payload),
   changeStatus: (id, status) => api.patch(`/operations/${id}/status`, { status }),
   remove: (id) => api.delete(`/operations/${id}`),
+}
+
+export const loansApi = {
+  list: (params) => api.get('/loans', { params }),
+  get: (id) => api.get(`/loans/${id}`),
+  duplicata: (id) => api.get(`/loans/${id}/duplicata`),
+  create: (payload) => api.post('/loans', payload),
+  update: (id, payload) => api.put(`/loans/${id}`, payload),
+  changeStatus: (id, status) => api.patch(`/loans/${id}/status`, { status }),
+  changeInstallmentStatus: (id, installmentId, status) =>
+    api.patch(`/loans/${id}/installments/${installmentId}/status`, { status }),
+  remove: (id) => api.delete(`/loans/${id}`),
+  report: (params) => api.get('/loans/report/summary', { params }),
+  whatsapp: (clientId, params) =>
+    api.get('/loans/report/whatsapp', { params: { ...params, client_id: clientId } }),
+  sendEmail: (payload, params) => api.post('/loans/report/email', payload, { params }),
+  exportPdf: (params) =>
+    downloadProtectedFile('/loans/report/export/pdf', loanExportFilename('pdf'), params),
+  exportXlsx: (params) =>
+    downloadProtectedFile('/loans/report/export/xlsx', loanExportFilename('xlsx'), params),
+}
+
+function loanExportFilename(extension) {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
+  return `emprestimos-factor-pro-${stamp}.${extension}`
 }
 
 export const receiptsApi = {
@@ -81,6 +118,16 @@ export const receiptsApi = {
   },
   attachmentUrl: (id) => `/receipts/${id}/attachment`,
   removeAttachment: (id) => api.delete(`/receipts/${id}/attachment`),
+  photos: (id) => api.get(`/receipts/${id}/photos`),
+  uploadPhotos: (id, files) => {
+    const form = new FormData()
+    files.forEach((file) => form.append('files', file))
+    return api.post(`/receipts/${id}/photos`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  photoUrl: (id, photoId) => `/receipts/${id}/photos/${photoId}`,
+  removePhoto: (id, photoId) => api.delete(`/receipts/${id}/photos/${photoId}`),
 }
 
 export const usersApi = {
@@ -98,11 +145,17 @@ export const settingsApi = {
   uploadLogo: (file) => {
     const form = new FormData()
     form.append('file', file)
-    return api.post('/settings/logo', form, {
+    return api.post('/settings/company/logo', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
-  removeLogo: () => api.delete('/settings/logo'),
+  removeLogo: () => api.delete('/settings/company/logo'),
+  backupStatus: () => api.get('/settings/backup'),
+  saveBackup: (payload) => api.put('/settings/backup', payload),
+  runBackup: () => api.post('/settings/backup/run'),
+  downloadBackup: (name) =>
+    downloadProtectedFile(`/settings/backup/${encodeURIComponent(name)}/download`, name),
+  deleteBackup: (name) => api.delete(`/settings/backup/${encodeURIComponent(name)}`),
 }
 
 export const reportsApi = {
@@ -118,11 +171,17 @@ export const reportsApi = {
   removeFilter: (id) => api.delete(`/reports/filters/${id}`),
 }
 
+/** Export the saved records of a list (same filters, no pagination). */
+export const listExportApi = {
+  exportXlsx: (resource, params) =>
+    downloadProtectedFile(`/export/${resource}/xlsx`, `${resource}-factor-pro.xlsx`, params),
+}
+
 function exportFilename(extension) {
   const now = new Date()
   const pad = (value) => String(value).padStart(2, '0')
   const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`
-  return `relatorio-${stamp}.${extension}`
+  return `relatorio-factor-pro-${stamp}.${extension}`
 }
 
 export async function downloadProtectedFile(url, filename, params) {
@@ -130,11 +189,27 @@ export async function downloadProtectedFile(url, filename, params) {
   const blobUrl = window.URL.createObjectURL(new Blob([response.data]))
   const anchor = document.createElement('a')
   anchor.href = blobUrl
-  anchor.download = filename || 'anexo'
+  anchor.download = serverFilename(response) || filename || 'anexo'
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
   setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000)
+}
+
+/** Prefer the branded filename supplied by the server's Content-Disposition header. */
+function serverFilename(response) {
+  const disposition = response.headers?.['content-disposition']
+  if (!disposition) return null
+  const utf8 = disposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8) {
+    try {
+      return decodeURIComponent(utf8[1])
+    } catch {
+      return utf8[1]
+    }
+  }
+  const plain = disposition.match(/filename="?([^";]+)"?/i)
+  return plain ? plain[1].trim() : null
 }
 
 /** Open an authenticated file (attachment) in a new tab without exposing the token. */

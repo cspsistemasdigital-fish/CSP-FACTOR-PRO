@@ -10,6 +10,7 @@ import SummaryTile from '../../components/ui/SummaryTile'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import FileField from '../../components/form/FileField'
+import PhotoCapture from '../../components/documents/PhotoCapture'
 import EmptyState from '../../components/ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import { formatBRL, formatDate, formatDateTime } from '../../utils/format'
@@ -393,6 +394,15 @@ export default function RecebimentoDetail() {
                 </button>
               </div>
             )}
+          </Panel>
+
+          <Panel title="Fotos do comprovante" icon="bi-camera" subtitle="Capture várias fotos pelo celular ou tablet e envie depois.">
+            <PhotoCapture
+              photosApi={receiptsApi}
+              documentId={item.id}
+              code={item.code}
+              canWrite={canWrite}
+            />
           </Panel>
 
           <Panel title="Resumo do título" icon="bi-calculator">

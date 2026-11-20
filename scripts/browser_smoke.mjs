@@ -470,6 +470,45 @@ async function main() {
     await shotFull(cdp, '18b-relatorios-full')
     await audit(cdp, 'relatorios')
 
+    const selectCarets = await evaluate(cdp, `(() => {
+      const selects = [...document.querySelectorAll('select.form-select')];
+      return {
+        total: selects.length,
+        bad: selects.filter((el) => {
+          const style = getComputedStyle(el);
+          const images = (style.backgroundImage.match(/url\\(/g) || []).length;
+          return style.appearance !== 'none' || images !== 1;
+        }).map((el) => el.outerHTML.slice(0, 90)),
+      };
+    })()`)
+    check(
+      'selects exibem uma unica seta',
+      selectCarets.total > 0 && selectCarets.bad.length === 0,
+      `${selectCarets.total} select(s) - ${JSON.stringify(selectCarets.bad.slice(0, 2))}`,
+    )
+
+    await goto(cdp, '/emprestimos', { ready: '!!document.querySelector(".stats-strip")' })
+    check(
+      'emprestimos exibe a tela implementada',
+      /emprest/i.test(await evaluate(cdp, 'document.querySelector(".page").innerText')),
+    )
+    await shot(cdp, '18c-emprestimos')
+    await audit(cdp, 'emprestimos')
+
+    await goto(cdp, '/emprestimos/novo', { ready: '!!document.querySelector("#loan-form")' })
+    await shot(cdp, '18d-emprestimo-novo')
+    await audit(cdp, 'emprestimo-novo')
+
+    await goto(cdp, '/emprestimos/relatorio', {
+      ready: 'document.querySelectorAll(".stat-grid > *").length >= 6',
+    })
+    check(
+      'relatorio de emprestimos exibe os cards',
+      (await evaluate(cdp, 'document.querySelectorAll(".stat-grid > *").length')) >= 6,
+    )
+    await shot(cdp, '18e-emprestimo-relatorio')
+    await audit(cdp, 'emprestimo-relatorio')
+
     await goto(cdp, '/configuracoes', { ready: '!!document.querySelector(".topbar")' })
     await shot(cdp, '19-configuracoes')
     await shotFull(cdp, '19b-configuracoes-full')

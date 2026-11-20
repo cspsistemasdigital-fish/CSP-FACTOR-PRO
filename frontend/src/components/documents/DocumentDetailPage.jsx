@@ -10,6 +10,7 @@ import SummaryTile from '../ui/SummaryTile'
 import StatusBadge from '../ui/StatusBadge'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import FileField from '../form/FileField'
+import PhotoCapture from './PhotoCapture'
 import EmptyState from '../ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../ui/Feedback'
 import {
@@ -462,6 +463,15 @@ export default function DocumentDetailPage({ config }) {
                 </button>
               </div>
             )}
+          </Panel>
+
+          <Panel title="Fotos do documento" icon="bi-camera" subtitle="Capture várias fotos pelo celular ou tablet e envie depois.">
+            <PhotoCapture
+              photosApi={api}
+              documentId={item.id}
+              code={item.code}
+              canWrite={canWrite}
+            />
           </Panel>
 
           <div className="info-note">

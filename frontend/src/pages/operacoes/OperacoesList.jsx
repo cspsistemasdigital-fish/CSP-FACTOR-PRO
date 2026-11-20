@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext'
 import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
+import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import EmptyState from '../../components/ui/EmptyState'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ClientSelect from '../../components/form/ClientSelect'
@@ -98,6 +99,11 @@ export default function OperacoesList() {
   const hasFilters = Boolean(search || status || clientId || activeAdvanced)
   const selectedClientId = clientId ? Number(clientId) : null
 
+  const exportParams = { sort, order }
+  ;['search', 'status', 'client_id', 'date_from', 'date_to'].forEach((key) => {
+    if (get(key)) exportParams[key] = get(key)
+  })
+
   return (
     <div className="page">
       <PageHeader
@@ -105,6 +111,7 @@ export default function OperacoesList() {
         subtitle="Cada operação reúne cheques e boletos de um mesmo cliente. Os totais são sempre derivados dos documentos vinculados — nunca recalculados."
         icon="bi-arrow-left-right"
       >
+        <ExportXlsxButton resource="operations" params={exportParams} />
         <button type="button" className="btn btn-light" onClick={load} disabled={loading}>
           <i className={`bi ${loading ? 'arrow-repeat spin' : 'arrow-clockwise'}`} /> Atualizar
         </button>

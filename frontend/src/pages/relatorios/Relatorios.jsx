@@ -40,14 +40,16 @@ const EMPTY_FILTERS = {
   client: null,
   kind: '',
   status: '',
+  loan_status: '',
   overdue: false,
   search: '',
 }
 
 const KIND_OPTIONS = [
-  { value: '', label: 'Todos os títulos' },
+  { value: '', label: 'Todos (cheques, boletos e empréstimos)' },
   { value: 'CHEQUE', label: 'Cheques' },
   { value: 'BOLETO', label: 'Boletos' },
+  { value: 'EMPRESTIMO', label: 'Empréstimos' },
 ]
 
 const STATUS_OPTIONS = [
@@ -58,19 +60,56 @@ const STATUS_OPTIONS = [
   { value: 'CANCELADO', label: 'Cancelado' },
 ]
 
+const LOAN_STATUS_OPTIONS = [
+  { value: '', label: 'Todas as situações' },
+  { value: 'ABERTA', label: 'Aberta' },
+  { value: 'QUITADA', label: 'Quitada' },
+  { value: 'CANCELADA', label: 'Cancelada' },
+]
+
+// Etapa 8: a single dropdown carries both domains. The prefix is stripped
+// before the request, so the API still receives `status` and `loan_status`.
+const COMBINED_STATUS_OPTIONS = [
+  { value: '', label: 'Todas as situações' },
+  ...STATUS_OPTIONS.slice(1).map((option) => ({
+    value: `doc:${option.value}`,
+    label: `Título · ${option.label}`,
+  })),
+  ...LOAN_STATUS_OPTIONS.slice(1).map((option) => ({
+    value: `loan:${option.value}`,
+    label: `Empréstimo · ${option.label}`,
+  })),
+]
+
+function combinedStatusValue(filters) {
+  if (filters.status) return `doc:${filters.status}`
+  if (filters.loan_status) return `loan:${filters.loan_status}`
+  return ''
+}
+
+function changeCombinedStatus(draft, value) {
+  if (!value) return { ...draft, status: '', loan_status: '' }
+  if (value.startsWith('doc:')) return { ...draft, status: value.slice(4), loan_status: '' }
+  return { ...draft, status: '', loan_status: value.slice(5) }
+}
+
 const TABS = [
   { key: 'geral', label: 'Visão geral', icon: 'bi-grid-1x2' },
   { key: 'clientes', label: 'Clientes e limites', icon: 'bi-people' },
-  { key: 'titulos', label: 'Títulos', icon: 'bi-collection' },
+  { key: 'titulos', label: 'Cheques e boletos', icon: 'bi-collection' },
+  { key: 'emprestimos', label: 'Empréstimos', icon: 'bi-cash-coin' },
   { key: 'operacoes', label: 'Operações', icon: 'bi-arrow-left-right' },
   { key: 'recebimentos', label: 'Recebimentos', icon: 'bi-cash-coin' },
 ]
 
 const STATUS_COLORS = {
-  EM_ABERTO: '#A9813C',
+  EM_ABERTO: '#E0A106',
   LIQUIDADO: '#16845B',
   DEVOLVIDO: '#C9463D',
   CANCELADO: '#7C8C86',
+  ABERTA: '#E0A106',
+  QUITADA: '#16845B',
+  CANCELADA: '#7C8C86',
 }
 
 function emptyReport() {
@@ -78,9 +117,12 @@ function emptyReport() {
     cards: {},
     by_kind: [],
     by_status: [],
+    by_loan_status: [],
     by_month: [],
     clients: [],
     documents: [],
+    loans: [],
+    installments: [],
     operations: [],
     receipts: [],
     counts: {},
@@ -97,6 +139,7 @@ function buildQuery(filters) {
   if (filters.client?.id) params.client_id = filters.client.id
   if (filters.kind) params.kind = filters.kind
   if (filters.status) params.status = filters.status
+  if (filters.loan_status) params.loan_status = filters.loan_status
   if (filters.overdue) params.overdue = 1
   if (filters.search?.trim()) params.search = filters.search.trim()
   return params
@@ -109,6 +152,7 @@ function hasActiveFilters(filters) {
       filters.client?.id ||
       filters.kind ||
       filters.status ||
+      filters.loan_status ||
       filters.overdue ||
       filters.search?.trim(),
   )
@@ -188,6 +232,9 @@ export default function Relatorios() {
   const cards = report.cards || {}
   const documents = report.documents || []
   const clients = report.clients || []
+  const loans = report.loans || []
+  const installments = report.installments || []
+  const byLoanStatus = report.by_loan_status || []
   const operations = report.operations || []
   const receipts = report.receipts || []
 
@@ -198,12 +245,14 @@ export default function Relatorios() {
 
   const clientsPage = useLocalPage(visibleClients)
   const documentsPage = useLocalPage(documents)
+  const loansPage = useLocalPage(loans)
+  const installmentsPage = useLocalPage(installments)
   const operationsPage = useLocalPage(operations)
   const receiptsPage = useLocalPage(receipts)
 
   const chartsTheme = isDark ? 'dark' : 'light'
-  const textColor = isDark ? '#DCE9E3' : '#2E3B35'
-  const mutedLine = isDark ? 'rgba(255,255,255,.10)' : '#E3DDCF'
+  const textColor = isDark ? '#DCE9E3' : '#3B4F48'
+  const mutedLine = isDark ? 'rgba(255,255,255,.10)' : '#E4ECE8'
 
   const monthlyOptions = useMemo(
     () => ({
@@ -215,7 +264,7 @@ export default function Relatorios() {
         stacked: false,
       },
       theme: { mode: chartsTheme },
-      colors: ['#16845B', '#173B57', '#A9813C'],
+      colors: ['#16845B', '#173B57', '#E0A106', '#6F4DB5'],
       plotOptions: { bar: { columnWidth: '55%', borderRadius: 5, borderRadiusApplication: 'end' } },
       dataLabels: { enabled: false },
       stroke: { show: true, width: 0 },
@@ -249,6 +298,7 @@ export default function Relatorios() {
       { name: 'Nominal', data: report.by_month.map((item) => Number(item.nominal || 0)) },
       { name: 'Líquido', data: report.by_month.map((item) => Number(item.net || 0)) },
       { name: 'Recebido', data: report.by_month.map((item) => Number(item.received || 0)) },
+      { name: 'Empréstimos', data: report.by_month.map((item) => Number(item.loan_amount || 0)) },
     ],
     [report.by_month],
   )
@@ -266,7 +316,7 @@ export default function Relatorios() {
         markers: { size: 6 },
       },
       dataLabels: { enabled: false },
-      stroke: { colors: [isDark ? '#16241F' : '#FFFDF8'], width: 3 },
+      stroke: { colors: [isDark ? '#16241F' : '#FFFFFF'], width: 3 },
       tooltip: { y: { formatter: (value) => `${formatNumber(value)} título(s)` } },
       plotOptions: {
         pie: {
@@ -288,6 +338,43 @@ export default function Relatorios() {
       noData: { text: 'Nenhum título no período', style: { color: textColor } },
     }),
     [chartsTheme, report.by_status, cards.documents_count, textColor, isDark],
+  )
+
+  const loanStatusOptions = useMemo(
+    () => ({
+      chart: { type: 'donut', background: 'transparent', fontFamily: 'inherit' },
+      theme: { mode: chartsTheme },
+      labels: byLoanStatus.map((item) => item.label),
+      colors: byLoanStatus.map((item) => STATUS_COLORS[item.status] || '#7C8C86'),
+      legend: {
+        position: 'bottom',
+        labels: { colors: textColor },
+        fontSize: '13px',
+        markers: { size: 6 },
+      },
+      dataLabels: { enabled: false },
+      stroke: { colors: [isDark ? '#16241F' : '#FFFFFF'], width: 3 },
+      tooltip: { y: { formatter: (value) => `${formatNumber(value)} empréstimo(s)` } },
+      plotOptions: {
+        pie: {
+          donut: {
+            size: '66%',
+            labels: {
+              show: true,
+              total: {
+                show: true,
+                label: 'Empréstimos',
+                color: textColor,
+                formatter: () => formatNumber(cards.loans_count || 0),
+              },
+              value: { color: textColor, fontSize: '22px', fontWeight: 700 },
+            },
+          },
+        },
+      },
+      noData: { text: 'Nenhum empréstimo no período', style: { color: textColor } },
+    }),
+    [chartsTheme, byLoanStatus, cards.loans_count, textColor, isDark],
   )
 
   const applyPreset = (key) => {
@@ -355,6 +442,7 @@ export default function Relatorios() {
       date_to: saved.date_to || '',
       kind: saved.kind || '',
       status: saved.status || '',
+      loan_status: saved.loan_status || '',
       overdue: Boolean(saved.overdue),
       search: saved.search || '',
       client: saved.client_id
@@ -440,11 +528,16 @@ export default function Relatorios() {
     navigate(item.kind === 'BOLETO' ? `/boletos/${item.id}` : `/cheques/${item.id}`)
   }
 
+  const openLoan = (item) => {
+    navigate(`/emprestimos/${item.id}`)
+  }
+
   const periodLabel = describePeriod(applied.date_from, applied.date_to)
   const activeFilterCount = [
     applied.client?.id,
     applied.kind,
     applied.status,
+    applied.loan_status,
     applied.overdue,
     applied.search?.trim(),
     applied.date_from || applied.date_to,
@@ -453,6 +546,7 @@ export default function Relatorios() {
   const tabCounts = {
     clientes: visibleClients.length,
     titulos: documents.length,
+    emprestimos: loans.length,
     operacoes: operations.length,
     recebimentos: receipts.length,
   }
@@ -460,12 +554,12 @@ export default function Relatorios() {
   return (
     <div className="page">
       <PageHeader
-        title="Relatórios"
-        subtitle="Consolidação da carteira por período, cliente, tipo e situação. Todos os números derivam dos lançamentos reais — nada é recalculado."
+        title="Relatório Geral"
+        subtitle="Cheques, boletos e empréstimos em um só lugar: filtre por período, cliente, tipo e situação para analisar cada caso. Todos os números derivam dos lançamentos reais — nada é recalculado."
         icon="bi-graph-up-arrow"
         badge={
           <span className="fp-badge fp-badge-success">
-            <i className="bi bi-check-circle-fill" /> Disponível
+            <i className="bi bi-check-circle-fill" /> Etapa 7
           </span>
         }
       >
@@ -555,10 +649,11 @@ export default function Relatorios() {
             <span>Situação</span>
             <select
               className="form-select fp-input"
-              value={draft.status}
-              onChange={(event) => setDraft({ ...draft, status: event.target.value })}
+              value={combinedStatusValue(draft)}
+              onChange={(event) => setDraft(changeCombinedStatus(draft, event.target.value))}
+              aria-label="Situação do título ou do empréstimo"
             >
-              {STATUS_OPTIONS.map((option) => (
+              {COMBINED_STATUS_OPTIONS.map((option) => (
                 <option key={option.value || 'all'} value={option.value}>
                   {option.label}
                 </option>
@@ -711,6 +806,22 @@ export default function Relatorios() {
               tone="green"
               loading={loading}
             />
+            <StatCard
+              label="Empréstimos no período"
+              value={formatNumber(cards.loans_count || 0)}
+              hint={`${formatBRL(cards.loan_amount_total || 0)} emprestados · ${formatBRL(cards.loan_received_total || 0)} recebidos.`}
+              icon="bi-cash-coin"
+              tone="petroleum"
+              loading={loading}
+            />
+            <StatCard
+              label="Lucro informado"
+              value={formatBRL(cards.profit_total || 0)}
+              hint={`${formatNumber(cards.installments_count || 0)} parcela(s) · ${formatBRL(cards.loan_open_total || 0)} em aberto.`}
+              icon="bi-graph-up"
+              tone="green"
+              loading={loading}
+            />
           </div>
 
           <div className="fp-panel settings-shell">
@@ -774,16 +885,68 @@ export default function Relatorios() {
                   </div>
 
                   <div className="report-split">
-                    <Panel title="Resumo por tipo" subtitle="Totais derivados dos títulos filtrados." icon="bi-layers">
+                    <Panel
+                      title="Empréstimos por situação"
+                      subtitle={`${formatNumber(cards.loans_count || 0)} empréstimo(s) no período`}
+                      icon="bi-pie-chart"
+                    >
+                      {loading ? (
+                        <LoadingBlock label="Carregando gráfico…" />
+                      ) : (
+                        <Chart
+                          key={`loan-status-${chartsTheme}-${cards.loans_count}`}
+                          options={loanStatusOptions}
+                          series={byLoanStatus.map((item) => item.count)}
+                          type="donut"
+                          height={300}
+                        />
+                      )}
+                    </Panel>
+                    <Panel
+                      title="Resumo por situação do empréstimo"
+                      subtitle="Valores informados, sem cálculo automático."
+                      icon="bi-clipboard-data"
+                    >
+                      <div className="table-responsive fp-table-wrap">
+                        <table className="table fp-table report-table">
+                          <thead>
+                            <tr>
+                              <th>Situação</th>
+                              <th className="text-end">Empréstimos</th>
+                              <th className="text-end">Valor emprestado</th>
+                              <th className="text-end">Lucro informado</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {byLoanStatus.map((item) => (
+                              <tr key={item.status}>
+                                <td>
+                                  <StatusBadge status={item.status} size="sm" />
+                                </td>
+                                <td className="text-end">{formatNumber(item.count)}</td>
+                                <td className="text-end money-cell">{formatBRL(item.loan_amount)}</td>
+                                <td className="text-end money-cell">{formatBRL(item.profit_amount)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </Panel>
+                  </div>
+
+                  <div className="report-split">
+                    <Panel title="Resumo por tipo" subtitle="Totais derivados dos lançamentos filtrados." icon="bi-layers">
                       <div className="table-responsive fp-table-wrap">
                         <table className="table fp-table report-table">
                           <thead>
                             <tr>
                               <th>Tipo</th>
-                              <th className="text-end">Títulos</th>
+                              <th className="text-end">Qtd.</th>
                               <th className="text-end">Nominal</th>
                               <th className="text-end">Líquido</th>
                               <th className="text-end">Em aberto</th>
+                              <th className="text-end">Emprestado</th>
+                              <th className="text-end">Lucro</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -792,7 +955,13 @@ export default function Relatorios() {
                                 <td>
                                   <span className="type-chip">
                                     <i
-                                      className={`bi ${item.kind === 'BOLETO' ? 'bi-receipt' : 'bi-journal-check'}`}
+                                      className={`bi ${
+                                        item.kind === 'BOLETO'
+                                          ? 'bi-receipt'
+                                          : item.kind === 'EMPRESTIMO'
+                                            ? 'bi-cash-coin'
+                                            : 'bi-journal-check'
+                                      }`}
                                     />{' '}
                                     {item.label}
                                   </span>
@@ -800,7 +969,15 @@ export default function Relatorios() {
                                 <td className="text-end">{formatNumber(item.count)}</td>
                                 <td className="text-end money-cell">{formatBRL(item.nominal)}</td>
                                 <td className="text-end money-cell">{formatBRL(item.net)}</td>
-                                <td className="text-end money-cell">{formatBRL(item.open)}</td>
+                                <td className="text-end money-cell">
+                                  {item.kind === 'EMPRESTIMO' ? '—' : formatBRL(item.open)}
+                                </td>
+                                <td className="text-end money-cell">
+                                  {item.kind === 'EMPRESTIMO' ? formatBRL(item.loan_amount) : '—'}
+                                </td>
+                                <td className="text-end money-cell">
+                                  {item.kind === 'EMPRESTIMO' ? formatBRL(item.profit_amount) : '—'}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -845,11 +1022,13 @@ export default function Relatorios() {
                     <div>
                       <strong>Como os valores são obtidos</strong>
                       <p>
-                        Nominal, custos e líquido são exatamente os valores informados nos cheques e boletos.
-                        O relatório apenas soma, agrupa e compara — nunca calcula juros, descontos, taxas ou
-                        encargos. {formatNumber(cards.divergences_count || 0)} título(s) com divergência de
-                        valores e {formatNumber(cards.limits_exceeded_count || 0)} cliente(s) acima do limite
-                        operacional.
+                        Nominal, custos e líquido são exatamente os valores informados nos cheques e boletos;
+                        emprestado, recebido e lucro são os valores informados nos empréstimos. O relatório
+                        apenas soma, agrupa e compara — nunca calcula juros, descontos, taxas ou encargos.{' '}
+                        {formatNumber(cards.divergences_count || 0)} título(s) e{' '}
+                        {formatNumber(cards.loan_divergences_count || 0)} empréstimo(s) com divergência de
+                        valores, {formatNumber(cards.overdue_installments || 0)} parcela(s) vencida(s) e{' '}
+                        {formatNumber(cards.limits_exceeded_count || 0)} cliente(s) acima do limite operacional.
                       </p>
                     </div>
                   </div>
@@ -1028,6 +1207,203 @@ export default function Relatorios() {
                       <p className="report-caption">
                         O saldo é apenas a diferença entre o líquido informado e o total já recebido. Títulos
                         cancelados ou excluídos logicamente não entram no relatório.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {tab === 'emprestimos' && (
+                <div className="report-stack">
+                  <div className="stat-grid">
+                    <StatCard
+                      label="Empréstimos"
+                      value={formatNumber(cards.loans_count || 0)}
+                      hint="Quantidade no período filtrado."
+                      icon="bi-cash-coin"
+                      tone="petroleum"
+                      loading={loading}
+                    />
+                    <StatCard
+                      label="Valor emprestado"
+                      value={formatBRL(cards.loan_amount_total || 0)}
+                      hint="Exatamente o valor informado."
+                      icon="bi-cash-stack"
+                      tone="light"
+                      loading={loading}
+                    />
+                    <StatCard
+                      label="Valor recebido"
+                      value={formatBRL(cards.loan_received_total || 0)}
+                      hint="Exatamente o valor informado."
+                      icon="bi-wallet2"
+                      tone="green"
+                      loading={loading}
+                    />
+                    <StatCard
+                      label="Lucro informado"
+                      value={formatBRL(cards.profit_total || 0)}
+                      hint="Diferença informada pelo usuário."
+                      icon="bi-graph-up"
+                      tone="green"
+                      loading={loading}
+                    />
+                    <StatCard
+                      label="Saldo em parcelas"
+                      value={formatBRL(cards.loan_open_total || 0)}
+                      hint="Parcelas em aberto ou devolvidas."
+                      icon="bi-hourglass-split"
+                      tone="warning"
+                      loading={loading}
+                    />
+                  </div>
+
+                  {byLoanStatus.length > 0 && (
+                    <div className="table-responsive fp-table-wrap">
+                      <table className="table fp-table report-table">
+                        <thead>
+                          <tr>
+                            <th>Situação do empréstimo</th>
+                            <th className="text-end">Empréstimos</th>
+                            <th className="text-end">Valor emprestado</th>
+                            <th className="text-end">Lucro informado</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {byLoanStatus.map((item) => (
+                            <tr key={item.status}>
+                              <td>
+                                <StatusBadge status={item.status} size="sm" />
+                              </td>
+                              <td className="text-end">{formatNumber(item.count)}</td>
+                              <td className="text-end money-cell">{formatBRL(item.loan_amount)}</td>
+                              <td className="text-end money-cell">{formatBRL(item.profit_amount)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {loans.length === 0 ? (
+                    <EmptyState
+                      icon="bi-cash-coin"
+                      title="Nenhum empréstimo encontrado"
+                      message="Ajuste os filtros ou cadastre um empréstimo para analisá-lo aqui."
+                    >
+                      <Link to="/emprestimos/novo" className="btn btn-primary">
+                        <i className="bi bi-plus-lg" /> Novo empréstimo
+                      </Link>
+                    </EmptyState>
+                  ) : (
+                    <>
+                      <div className="table-responsive fp-table-wrap">
+                        <table className="table fp-table report-table">
+                          <thead>
+                            <tr>
+                              <th>Empréstimo</th>
+                              <th>Cliente</th>
+                              <th>Data</th>
+                              <th>Situação</th>
+                              <th className="text-end">Emprestado</th>
+                              <th className="text-end">Recebido</th>
+                              <th className="text-end">Lucro</th>
+                              <th className="text-end">Parcelas</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {loansPage.slice.map((item) => (
+                              <tr
+                                key={item.id}
+                                className="doc-row"
+                                tabIndex={0}
+                                role="link"
+                                onClick={() => openLoan(item)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault()
+                                    openLoan(item)
+                                  }
+                                }}
+                              >
+                                <td>
+                                  <span className="doc-code">
+                                    <i className="bi bi-cash-coin" />
+                                    {item.code}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className="cell-strong">{item.client?.name || '—'}</span>
+                                  {item.client?.code && <span className="cell-sub">{item.client.code}</span>}
+                                </td>
+                                <td>{formatDate(item.loan_date)}</td>
+                                <td>
+                                  <StatusBadge status={item.status} size="sm" />
+                                </td>
+                                <td className="text-end money-cell">{formatBRL(item.loan_amount)}</td>
+                                <td className="text-end money-cell">{formatBRL(item.received_amount)}</td>
+                                <td className="text-end money-cell">{formatBRL(item.profit_amount)}</td>
+                                <td className="text-end">
+                                  {formatNumber(item.totals?.installments || 0)}
+                                  {item.totals?.overdue_installments > 0 && (
+                                    <span className="cell-sub text-danger">
+                                      {formatNumber(item.totals.overdue_installments)} vencida(s)
+                                    </span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                      <Pagination meta={loansPage.meta} onChange={loansPage.setPage} />
+
+                      {installments.length > 0 && (
+                        <Panel
+                          title="Parcelas"
+                          subtitle={`${formatNumber(installments.length)} parcela(s) dos empréstimos filtrados.`}
+                          icon="bi-calendar2-check"
+                        >
+                          <div className="table-responsive fp-table-wrap">
+                            <table className="table fp-table report-table">
+                              <thead>
+                                <tr>
+                                  <th>Empréstimo</th>
+                                  <th>Cliente</th>
+                                  <th>Parcela</th>
+                                  <th>Vencimento</th>
+                                  <th>Situação</th>
+                                  <th className="text-end">Valor</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {installmentsPage.slice.map((item) => (
+                                  <tr key={`${item.loan_id}-${item.id}`}>
+                                    <td>{item.loan_code || '—'}</td>
+                                    <td>{item.client_name || '—'}</td>
+                                    <td>{String(item.number).padStart(2, '0')}</td>
+                                    <td>
+                                      <span className={item.is_overdue ? 'date-overdue' : ''}>
+                                        {formatDate(item.due_date)}
+                                      </span>
+                                    </td>
+                                    <td>
+                                      <StatusBadge status={item.status} overdue={item.is_overdue} size="sm" />
+                                    </td>
+                                    <td className="text-end money-cell">{formatBRL(item.amount)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <Pagination meta={installmentsPage.meta} onChange={installmentsPage.setPage} />
+                        </Panel>
+                      )}
+
+                      <p className="report-caption">
+                        Valores emprestados, recebidos e lucro são informados e gravados exatamente como
+                        digitados. As parcelas são uma sugestão editável de vencimentos — o sistema não calcula
+                        juros, taxas ou encargos. Empréstimos excluídos logicamente não entram no relatório.
                       </p>
                     </>
                   )}
@@ -1232,6 +1608,12 @@ export default function Relatorios() {
                 <i className="bi bi-collection" /> {formatNumber(waData?.documents_count || 0)} título(s) em
                 aberto
               </span>
+              {(waData?.loans_count || 0) > 0 && (
+                <span>
+                  <i className="bi bi-cash-coin" /> {formatNumber(waData.loans_count)} empréstimo(s) ·{' '}
+                  {formatNumber(waData.installments_count || 0)} parcela(s)
+                </span>
+              )}
               <span>
                 <i className="bi bi-cash-stack" /> Total: <strong>{formatBRL(waData?.total || 0)}</strong>
               </span>

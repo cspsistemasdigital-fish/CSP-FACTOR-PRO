@@ -22,13 +22,19 @@ const TITLES = [
   { match: /^\/boletos/, title: 'Boletos' },
   { match: /^\/operacoes/, title: 'Operações' },
   { match: /^\/recebimentos/, title: 'Recebimentos' },
+  { match: /^\/emprestimos\/relatorio/, title: 'Relatório de Empréstimos' },
+  { match: /^\/emprestimos\/novo/, title: 'Novo empréstimo' },
+  { match: /^\/emprestimos\/\d+\/editar/, title: 'Editar empréstimo' },
+  { match: /^\/emprestimos\/\d+\/duplicata/, title: 'Duplicata' },
+  { match: /^\/emprestimos\/\d+/, title: 'Detalhes do empréstimo' },
+  { match: /^\/emprestimos/, title: 'Empréstimos' },
   { match: /^\/relatorios/, title: 'Relatórios' },
   { match: /^\/configuracoes/, title: 'Configurações' },
   { match: /^\/administracao/, title: 'Administração' },
 ]
 
-function pageTitle(pathname) {
-  return TITLES.find((entry) => entry.match.test(pathname))?.title || 'Página'
+function pageTitle(pathname, fallback) {
+  return TITLES.find((entry) => entry.match.test(pathname))?.title || fallback
 }
 
 export default function Topbar({ onToggleSidebar, onOpenMobile }) {
@@ -81,7 +87,7 @@ export default function Topbar({ onToggleSidebar, onOpenMobile }) {
         </button>
         <div className="topbar-title">
           <span className="topbar-eyebrow">{appName}</span>
-          <h1>{pageTitle(location.pathname)}</h1>
+          <h1>{pageTitle(location.pathname, appName)}</h1>
         </div>
       </div>
 

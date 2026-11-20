@@ -19,10 +19,15 @@ from ..utils.security import auth_required
 from .documents_utils import (
     document_history,
     download_attachment,
+    download_photo,
     get_document_or_none,
+    get_photo_or_none,
     list_banks,
+    list_photos,
     remove_attachment,
+    remove_photo,
     upload_attachment,
+    upload_photos,
 )
 
 bp = Blueprint("cheques", __name__, url_prefix="/api/cheques")
@@ -146,3 +151,45 @@ def delete_cheque_attachment(cheque_id: int):
     if not cheque:
         return error("Cheque não encontrado.", 404)
     return remove_attachment(cheque, "cheque", g.current_user)
+
+
+@bp.get("/<int:cheque_id>/photos")
+@auth_required()
+def list_cheque_photos(cheque_id: int):
+    cheque = get_document_or_none(Cheque, cheque_id)
+    if not cheque:
+        return error("Cheque não encontrado.", 404)
+    return list_photos(cheque, "CHEQUE")
+
+
+@bp.post("/<int:cheque_id>/photos")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def upload_cheque_photos(cheque_id: int):
+    cheque = get_document_or_none(Cheque, cheque_id)
+    if not cheque:
+        return error("Cheque não encontrado.", 404)
+    return upload_photos(cheque, "CHEQUE", "cheque", g.current_user)
+
+
+@bp.get("/<int:cheque_id>/photos/<int:attachment_id>")
+@auth_required()
+def download_cheque_photo(cheque_id: int, attachment_id: int):
+    cheque = get_document_or_none(Cheque, cheque_id)
+    if not cheque:
+        return error("Cheque não encontrado.", 404)
+    photo = get_photo_or_none(cheque, "CHEQUE", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return download_photo(cheque, photo)
+
+
+@bp.delete("/<int:cheque_id>/photos/<int:attachment_id>")
+@auth_required(Role.ADMIN, Role.OPERATOR)
+def delete_cheque_photo(cheque_id: int, attachment_id: int):
+    cheque = get_document_or_none(Cheque, cheque_id)
+    if not cheque:
+        return error("Cheque não encontrado.", 404)
+    photo = get_photo_or_none(cheque, "CHEQUE", attachment_id)
+    if not photo:
+        return error("Foto não encontrada.", 404)
+    return remove_photo(cheque, photo, "cheque", g.current_user)

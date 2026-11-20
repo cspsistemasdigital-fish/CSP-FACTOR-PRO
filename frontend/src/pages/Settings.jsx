@@ -14,7 +14,6 @@ import DocumentField from '../components/form/DocumentField'
 import PhoneField from '../components/form/PhoneField'
 import { ErrorBlock, LoadingBlock } from '../components/ui/Feedback'
 import { formatDateTime } from '../utils/format'
-import '../styles/brand.css'
 
 const STATES = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
@@ -24,8 +23,10 @@ const STATES = [
 const EMPTY_PASSWORD = { current: '', password: '', confirm: '' }
 
 const EMPTY_COMPANY = {
-  app_name: '',
   company_name: '',
+  app_name: 'FACTOR PRO',
+  brand_logo_path: '',
+  brand_logo_name: '',
   company_document: '',
   company_phone: '',
   company_email: '',
@@ -40,8 +41,25 @@ const TABS = [
   { key: 'seguranca', label: 'Segurança', icon: 'bi-shield-lock' },
   { key: 'aparencia', label: 'Aparência', icon: 'bi-palette' },
   { key: 'empresa', label: 'Dados da empresa', icon: 'bi-building', adminOnly: true },
+  { key: 'backup', label: 'Backup diário', icon: 'bi-hdd-stack', adminOnly: true },
   { key: 'aplicativo', label: 'Aplicativo', icon: 'bi-phone' },
 ]
+
+const EMPTY_BACKUP = {
+  backup_enabled: 'true',
+  backup_time: '03:00',
+  backup_retention_days: '7',
+  backup_include_uploads: 'true',
+  backup_last_at: '',
+  backup_last_error: '',
+}
+
+function formatBytes(value) {
+  const bytes = Number(value) || 0
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
 
 function profileInitials(name) {
   return String(name || '?')
@@ -67,7 +85,7 @@ function validatePassword(form) {
 
 export default function Settings() {
   const { user, isAdmin, setUser } = useAuth()
-  const { appName, logoUrl, refreshBrand } = useBrand()
+  const { appName, refreshBrand } = useBrand()
   const { theme, setTheme } = useTheme()
   const toast = useToast()
   const { canInstall, install, installed } = useInstallPrompt()
@@ -125,8 +143,6 @@ export default function Settings() {
   const [companyErrors, setCompanyErrors] = useState({})
   const [companyMessage, setCompanyMessage] = useState('')
   const [savingCompany, setSavingCompany] = useState(false)
-  const [uploadingLogo, setUploadingLogo] = useState(false)
-  const [removingLogo, setRemovingLogo] = useState(false)
 
   const loadCompany = useCallback(async () => {
     if (!isAdmin) return
@@ -146,6 +162,58 @@ export default function Settings() {
     loadCompany()
   }, [loadCompany])
 
+  // --- Branding: app name + single logo reused everywhere ----------------
+  const [logoFile, setLogoFile] = useState(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+  const [removingLogo, setRemovingLogo] = useState(false)
+  const [logoPreview, setLogoPreview] = useState(null)
+
+  useEffect(() => () => {
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+  }, [logoPreview])
+
+  const onLogoChange = (event) => {
+    const file = event.target.files?.[0] || null
+    setLogoFile(file)
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoPreview(file ? URL.createObjectURL(file) : null)
+  }
+
+  const applyBrandSettings = (settings, message) => {
+    setCompany((current) => ({ ...current, ...settings }))
+    setLogoFile(null)
+    if (logoPreview) URL.revokeObjectURL(logoPreview)
+    setLogoPreview(null)
+    refreshBrand()
+    toast.success('Marca atualizada', message)
+  }
+
+  const submitLogo = async (event) => {
+    event.preventDefault()
+    if (!logoFile) return
+    setUploadingLogo(true)
+    try {
+      const { data } = await settingsApi.uploadLogo(logoFile)
+      applyBrandSettings(data.settings, data.message)
+    } catch (error) {
+      toast.error('Não foi possível enviar o logotipo', apiError(error).message)
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const removeLogoImage = async () => {
+    setRemovingLogo(true)
+    try {
+      const { data } = await settingsApi.removeLogo()
+      applyBrandSettings(data.settings, data.message)
+    } catch (error) {
+      toast.error('Não foi possível remover o logotipo', apiError(error).message)
+    } finally {
+      setRemovingLogo(false)
+    }
+  }
+
   const updateCompany = (field) => (value) => {
     setCompany((current) => ({ ...current, [field]: value }))
     setCompanyErrors((current) => ({ ...current, [field]: undefined }))
@@ -157,11 +225,11 @@ export default function Settings() {
   const submitCompany = async (event) => {
     event.preventDefault()
     const errors = {}
-    if (!company.app_name.trim() || company.app_name.trim().length < 2) {
-      errors.app_name = 'Informe o nome do aplicativo.'
-    }
     if (!company.company_name.trim() || company.company_name.trim().length < 2) {
       errors.company_name = 'Informe o nome da empresa.'
+    }
+    if (!company.app_name?.trim() || company.app_name.trim().length < 2) {
+      errors.app_name = 'Informe o nome do aplicativo.'
     }
     if (company.company_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(company.company_email)) {
       errors.company_email = 'E-mail inválido.'
@@ -173,13 +241,13 @@ export default function Settings() {
     try {
       const { data } = await settingsApi.update({
         ...company,
-        app_name: company.app_name.trim(),
         company_name: company.company_name.trim(),
+        app_name: company.app_name.trim(),
         company_email: company.company_email.trim(),
         company_state: company.company_state.toUpperCase(),
       })
       setCompany({ ...EMPTY_COMPANY, ...data.settings })
-      await refreshBrand()
+      refreshBrand()
       toast.success('Configurações salvas', data.message)
     } catch (error) {
       const parsed = apiError(error)
@@ -190,41 +258,90 @@ export default function Settings() {
     }
   }
 
-  const handleLogoUpload = async (event) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
-    if (!file) return
-    const allowed = ['image/png', 'image/jpeg', 'image/webp']
-    if (!allowed.includes(file.type)) {
-      toast.error('Formato não aceito', 'Use uma imagem PNG, JPEG ou WebP.')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Arquivo muito grande', 'O logotipo deve ter no máximo 10 MB.')
-      return
-    }
-    setUploadingLogo(true)
+  // --- Daily backup (ADMIN) ----------------------------------------------
+  const [backupForm, setBackupForm] = useState(EMPTY_BACKUP)
+  const [backups, setBackups] = useState([])
+  const [schedulerEnabled, setSchedulerEnabled] = useState(true)
+  const [backupLoading, setBackupLoading] = useState(isAdmin)
+  const [backupErrors, setBackupErrors] = useState({})
+  const [savingBackup, setSavingBackup] = useState(false)
+  const [runningBackup, setRunningBackup] = useState(false)
+  const [deletingBackup, setDeletingBackup] = useState('')
+
+  const loadBackup = useCallback(async () => {
+    if (!isAdmin) return
+    setBackupLoading(true)
     try {
-      const { data } = await settingsApi.uploadLogo(file)
-      await refreshBrand()
-      toast.success('Logotipo atualizado', data.message)
+      const { data } = await settingsApi.backupStatus()
+      setBackupForm({ ...EMPTY_BACKUP, ...data.settings })
+      setBackups(data.backups || [])
+      setSchedulerEnabled(Boolean(data.scheduler_enabled))
     } catch (error) {
-      toast.error('Não foi possível enviar o logotipo', apiError(error).message)
+      toast.error('Não foi possível carregar o backup', apiError(error).message)
     } finally {
-      setUploadingLogo(false)
+      setBackupLoading(false)
+    }
+  }, [isAdmin, toast])
+
+  useEffect(() => {
+    loadBackup()
+  }, [loadBackup])
+
+  const updateBackup = (field) => (event) => {
+    setBackupForm((current) => ({ ...current, [field]: event.target.value }))
+    setBackupErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  const submitBackup = async (event) => {
+    event.preventDefault()
+    setSavingBackup(true)
+    setBackupErrors({})
+    try {
+      const { data } = await settingsApi.saveBackup(backupForm)
+      setBackupForm({ ...EMPTY_BACKUP, ...data.settings })
+      setBackups(data.backups || [])
+      toast.success('Backup configurado', data.message)
+    } catch (error) {
+      const parsed = apiError(error)
+      setBackupErrors(parsed.errors || {})
+      toast.error('Não foi possível salvar', parsed.message)
+    } finally {
+      setSavingBackup(false)
     }
   }
 
-  const handleLogoRemove = async () => {
-    setRemovingLogo(true)
+  const runBackup = async () => {
+    setRunningBackup(true)
     try {
-      const { data } = await settingsApi.removeLogo()
-      await refreshBrand()
-      toast.success('Logotipo removido', data.message)
+      const { data } = await settingsApi.runBackup()
+      setBackups(data.backups || [])
+      setBackupForm((current) => ({ ...current, backup_last_at: data.item?.created_at || current.backup_last_at, backup_last_error: '' }))
+      toast.success('Backup criado', `${data.item?.name || 'Arquivo'} salvo com sucesso.`)
     } catch (error) {
-      toast.error('Não foi possível remover o logotipo', apiError(error).message)
+      toast.error('Não foi possível criar o backup', apiError(error).message)
     } finally {
-      setRemovingLogo(false)
+      setRunningBackup(false)
+    }
+  }
+
+  const downloadBackupFile = async (name) => {
+    try {
+      await settingsApi.downloadBackup(name)
+    } catch (error) {
+      toast.error('Não foi possível baixar o backup', apiError(error).message)
+    }
+  }
+
+  const removeBackupFile = async (name) => {
+    setDeletingBackup(name)
+    try {
+      const { data } = await settingsApi.deleteBackup(name)
+      setBackups(data.backups || [])
+      toast.success('Backup removido', data.message)
+    } catch (error) {
+      toast.error('Não foi possível remover o backup', apiError(error).message)
+    } finally {
+      setDeletingBackup('')
     }
   }
 
@@ -250,7 +367,7 @@ export default function Settings() {
     <div className="page">
       <PageHeader
         title="Configurações"
-        subtitle={`Perfil, segurança, aparência e dados institucionais do ${appName}.`}
+        subtitle="Perfil, segurança, aparência, marca e dados institucionais do aplicativo."
         icon="bi-gear-fill"
       />
 
@@ -523,11 +640,9 @@ export default function Settings() {
                   <div className="palette-row">
                     <span><em style={{ background: '#123D32' }} /> Verde escuro</span>
                     <span><em style={{ background: '#16845B' }} /> Verde</span>
-                    <span><em style={{ background: '#E4F0E7' }} /> Verde claro</span>
-                    <span><em style={{ background: '#A9813C' }} /> Acento latão</span>
+                    <span><em style={{ background: '#DDF4E8' }} /> Verde claro</span>
                     <span><em style={{ background: '#173B57' }} /> Azul petróleo</span>
-                    <span><em style={{ background: '#FFFDF8' }} /> Branco quente</span>
-                    <span><em style={{ background: '#F5F1E8' }} /> Fundo claro</span>
+                    <span><em style={{ background: '#F4F7F6' }} /> Fundo claro</span>
                     <span><em style={{ background: '#101B1A' }} /> Fundo escuro</span>
                   </div>
                 </Panel>
@@ -552,79 +667,84 @@ export default function Settings() {
             <div className="settings-layout">
               <div className="settings-main">
                 <Panel
-                  title="Identidade do aplicativo"
-                  subtitle="Nome e símbolo exibidos no login, no menu, nas abas do navegador e no aplicativo instalado."
-                  icon="bi-badge-ad"
+                  title="Marca do aplicativo"
+                  subtitle="Personalize o nome e o ícone usados no menu, no PWA e em todas as exportações."
+                  icon="bi-palette"
                 >
-                  {companyLoading || companyLoadError ? (
-                    <LoadingBlock label="Carregando identidade…" />
-                  ) : (
-                    <>
-                      <div className="form-grid">
-                        <Field
-                          label="Nome do aplicativo"
-                          name="app_name"
-                          icon="bi-input-cursor-text"
-                          className="span-2"
-                          value={company.app_name}
-                          onChange={updateCompanyEvent('app_name')}
-                          error={companyErrors.app_name}
-                          maxLength={40}
-                          hint={`Exibido em toda a interface e na instalação PWA. Padrão: FACTOR PRO. Nome institucional: ${company.company_name || appName}.`}
-                          required
+                  <div className="brand-settings">
+                    <div className="brand-logo-preview" aria-label="Prévia do logotipo">
+                      {logoPreview || company.brand_logo_path ? (
+                        <img
+                          src={logoPreview || '/api/settings/brand/logo'}
+                          alt="Logotipo da empresa"
                         />
-                      </div>
-                      <div className="brand-logo-row">
-                        <div className="brand-logo-preview">
-                          {logoUrl ? (
-                            <img src={logoUrl} alt={`Logotipo de ${appName}`} />
-                          ) : (
-                            <span className="brand-logo-placeholder">
-                              <i className="bi bi-image" />
-                            </span>
-                          )}
-                        </div>
-                        <div className="brand-logo-actions">
-                          <strong>Logotipo</strong>
-                          <p>
-                            PNG, JPEG ou WebP de até 10 MB. A imagem é exibida no login e substitui o
-                            símbolo padrão no aplicativo instalado.
-                          </p>
-                          <div className="brand-logo-buttons">
-                            <label className={`btn btn-outline-primary ${uploadingLogo ? 'disabled' : ''}`}>
-                              <i className="bi bi-upload" />
-                              {uploadingLogo ? ' Enviando…' : ' Enviar logotipo'}
-                              <input
-                                type="file"
-                                accept="image/png,image/jpeg,image/webp"
-                                onChange={handleLogoUpload}
-                                disabled={uploadingLogo}
-                                className="visually-hidden"
-                              />
-                            </label>
-                            {logoUrl && (
-                              <button
-                                type="button"
-                                className="btn btn-light"
-                                onClick={handleLogoRemove}
-                                disabled={removingLogo}
-                              >
-                                <i className="bi bi-arrow-counterclockwise" />
-                                {removingLogo ? ' Restaurando…' : ' Restaurar padrão'}
-                              </button>
+                      ) : (
+                        <i className="bi bi-image" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="brand-logo-info">
+                      <strong>{company.brand_logo_name || 'Logotipo padrão'}</strong>
+                      <p>
+                        Um único arquivo é usado como ícone do aplicativo (favicon, menu e PWA) e como
+                        logotipo em PDF, planilhas, recibos e duplicatas.
+                      </p>
+                      <form onSubmit={submitLogo} className="brand-logo-actions">
+                        <label className="btn btn-outline-primary btn-sm mb-0">
+                          <i className="bi bi-upload" /> Escolher imagem
+                          <input
+                            type="file"
+                            accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
+                            onChange={onLogoChange}
+                            hidden
+                          />
+                        </label>
+                        {logoFile && (
+                          <button type="submit" className="btn btn-primary btn-sm" disabled={uploadingLogo}>
+                            {uploadingLogo ? (
+                              <>
+                                <span className="spinner-border spinner-border-sm" aria-hidden="true" /> Enviando…
+                              </>
+                            ) : (
+                              <><i className="bi bi-check2" /> Salvar logotipo</>
                             )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="inline-alert info mt-3">
-                        <i className="bi bi-info-circle-fill" />
-                        <span>
-                          Use o botão “Salvar configurações” para aplicar o nome. O logotipo é aplicado
-                          imediatamente após o envio e registrado na auditoria.
-                        </span>
-                      </div>
-                    </>
-                  )}
+                          </button>
+                        )}
+                        {company.brand_logo_path && (
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={removeLogoImage}
+                            disabled={removingLogo}
+                          >
+                            {removingLogo ? (
+                              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Removendo…</>
+                            ) : (
+                              <><i className="bi bi-trash3" /> Remover</>
+                            )}
+                          </button>
+                        )}
+                      </form>
+                      <small className="text-muted">PNG, JPG ou WEBP · até 10 MB.</small>
+                    </div>
+                  </div>
+                  <div className="form-grid brand-name-field">
+                    <Field
+                      label="Nome do aplicativo"
+                      name="app_name"
+                      icon="bi-type"
+                      className="span-2"
+                      value={company.app_name}
+                      onChange={updateCompanyEvent('app_name')}
+                      error={companyErrors.app_name}
+                      maxLength={60}
+                      hint="Exibido no menu, na tela de login, no PWA e no cabeçalho das exportações."
+                      required
+                    />
+                  </div>
+                  <p className="brand-hint">
+                    <i className="bi bi-info-circle" /> O nome é salvo junto com os dados da empresa pelo botão
+                    “Salvar configurações” abaixo. A imagem é salva imediatamente ao escolher “Salvar logotipo”.
+                  </p>
                 </Panel>
 
                 <Panel
@@ -757,10 +877,193 @@ export default function Settings() {
                 <div className="info-note">
                   <i className="bi bi-signpost-split" />
                   <div>
-                    <strong>Uso nas próximas etapas</strong>
+                    <strong>Onde aparecem</strong>
                     <p>
-                      Estes dados serão usados em relatórios, recibos e mensagens de cobrança das Etapas 2 e
-                      3. Nada é enviado automaticamente nesta etapa.
+                      Estes dados aparecem em relatórios, recibos, duplicatas e mensagens geradas. Nenhuma
+                      mensagem é enviada automaticamente — o sistema apenas prepara o texto para conferência.
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            </div>
+          )}
+
+          {activeTab === 'backup' && isAdmin && (
+            <div className="settings-layout">
+              <div className="settings-main">
+                <Panel
+                  title="Backup diário"
+                  subtitle="Uma cópia automática do banco e dos anexos é salva todos os dias, sem apagar os dados originais."
+                  icon="bi-hdd-stack"
+                >
+                  {backupLoading ? (
+                    <LoadingBlock label="Carregando configuração de backup…" />
+                  ) : (
+                    <>
+                      <form onSubmit={submitBackup} className="form-grid" noValidate>
+                        <div className="span-2 backup-toggle">
+                          <label className="fp-check">
+                            <input
+                              type="checkbox"
+                              checked={backupForm.backup_enabled === 'true'}
+                              onChange={(event) =>
+                                setBackupForm((current) => ({
+                                  ...current,
+                                  backup_enabled: event.target.checked ? 'true' : 'false',
+                                }))
+                              }
+                            />
+                            <span>
+                              <strong>Ativar backup automático</strong>
+                              <small>
+                                {schedulerEnabled
+                                  ? 'O agendador está ativo nesta instância.'
+                                  : 'O agendador está desativado nesta instância; apenas backups manuais funcionarão.'}
+                              </small>
+                            </span>
+                          </label>
+                        </div>
+                        <Field
+                          label="Horário do backup diário"
+                          name="backup_time"
+                          type="time"
+                          icon="bi-clock"
+                          value={backupForm.backup_time}
+                          onChange={updateBackup('backup_time')}
+                          error={backupErrors.backup_time}
+                          hint="Horário local do servidor em que a cópia automática é criada."
+                          required
+                        />
+                        <Field
+                          label="Manter por quantos dias"
+                          name="backup_retention_days"
+                          type="number"
+                          icon="bi-calendar3"
+                          min={1}
+                          max={365}
+                          value={backupForm.backup_retention_days}
+                          onChange={updateBackup('backup_retention_days')}
+                          error={backupErrors.backup_retention_days}
+                          hint="Backups mais antigos que esse prazo são removidos automaticamente."
+                          required
+                        />
+                        <div className="span-2 backup-toggle">
+                          <label className="fp-check">
+                            <input
+                              type="checkbox"
+                              checked={backupForm.backup_include_uploads === 'true'}
+                              onChange={(event) =>
+                                setBackupForm((current) => ({
+                                  ...current,
+                                  backup_include_uploads: event.target.checked ? 'true' : 'false',
+                                }))
+                              }
+                            />
+                            <span>
+                              <strong>Incluir anexos e fotos no backup</strong>
+                              <small>Recomendado: garante que os documentos enviados também sejam restauráveis.</small>
+                            </span>
+                          </label>
+                        </div>
+                        <div className="span-2 form-actions">
+                          <button type="button" className="btn btn-light" onClick={loadBackup} disabled={savingBackup}>
+                            <i className="bi bi-arrow-counterclockwise" /> Recarregar
+                          </button>
+                          <button type="submit" className="btn btn-primary" disabled={savingBackup}>
+                            {savingBackup ? (
+                              <><span className="spinner-border spinner-border-sm" aria-hidden="true" /> Salvando…</>
+                            ) : (
+                              <><i className="bi bi-check2" /> Salvar configuração</>
+                            )}
+                          </button>
+                        </div>
+                      </form>
+
+                      <div className="backup-status">
+                        <div>
+                          <span>Último backup</span>
+                          <strong>
+                            {backupForm.backup_last_at
+                              ? formatDateTime(backupForm.backup_last_at)
+                              : 'Nenhum backup registrado'}
+                          </strong>
+                        </div>
+                        <div>
+                          <span>Arquivos guardados</span>
+                          <strong>{backups.length}</strong>
+                        </div>
+                        <button type="button" className="btn btn-outline-primary" onClick={runBackup} disabled={runningBackup}>
+                          {runningBackup ? (
+                            <><span className="spinner-border spinner-border-sm me-2" aria-hidden="true" /> Criando…</>
+                          ) : (
+                            <><i className="bi bi-hdd-stack" /> Criar backup agora</>
+                          )}
+                        </button>
+                      </div>
+                      {backupForm.backup_last_error && (
+                        <div className="inline-alert danger mt-2">
+                          <i className="bi bi-exclamation-triangle-fill" />
+                          <span>Último erro: {backupForm.backup_last_error}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </Panel>
+
+                <Panel title="Backups salvos" subtitle="Baixe uma cópia para guardar em outro local ou remova arquivos antigos." icon="bi-archive">
+                  {backups.length ? (
+                    <ul className="backup-list">
+                      {backups.map((entry) => (
+                        <li key={entry.name}>
+                          <i className="bi bi-file-earmark-zip" />
+                          <div>
+                            <strong>{entry.name}</strong>
+                            <span>{formatDateTime(entry.created_at)} · {formatBytes(entry.size)}</span>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-primary"
+                            onClick={() => downloadBackupFile(entry.name)}
+                            aria-label={`Baixar ${entry.name}`}
+                          >
+                            <i className="bi bi-download" /> Baixar
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-link text-danger"
+                            onClick={() => removeBackupFile(entry.name)}
+                            disabled={deletingBackup === entry.name}
+                            aria-label={`Remover ${entry.name}`}
+                          >
+                            <i className="bi bi-trash3" /> {deletingBackup === entry.name ? 'Removendo…' : 'Remover'}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="panel-hint">Nenhum backup salvo ainda. Use “Criar backup agora” para gerar o primeiro.</p>
+                  )}
+                </Panel>
+              </div>
+
+              <aside className="settings-side">
+                <div className="info-note">
+                  <i className="bi bi-shield-check" />
+                  <div>
+                    <strong>Segurança dos dados</strong>
+                    <p>
+                      O backup é um arquivo ZIP com o banco e, opcionalmente, os anexos. Ele fica no servidor
+                      em uma pasta protegida e nunca substitui ou altera os dados do aplicativo.
+                    </p>
+                  </div>
+                </div>
+                <div className="info-note">
+                  <i className="bi bi-exclamation-triangle" />
+                  <div>
+                    <strong>Boas práticas</strong>
+                    <p>
+                      Baixe o arquivo periodicamente e guarde-o em outro local (nuvem ou unidade externa).
+                      Assim, uma falha no servidor não impede a recuperação das informações dos clientes.
                     </p>
                   </div>
                 </div>
@@ -845,7 +1148,7 @@ export default function Settings() {
 
       <div className="settings-about">
         <span><strong>{appName}</strong> · Gestão Financeira Inteligente</span>
-        <span>Versão 1.3 · Gestão completa — clientes, documentos, operações, recebimentos e relatórios</span>
+        <span>Versão 1.6 · Etapa 8 — exportação em listas, backup, atendente e fotos</span>
       </div>
     </div>
   )

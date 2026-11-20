@@ -22,8 +22,8 @@ const HIGHLIGHTS = [
 ]
 
 export default function AuthLayout({ children, footer }) {
-  const { isDark, toggle } = useTheme()
   const { appName } = useBrand()
+  const { isDark, toggle } = useTheme()
 
   return (
     <div className="auth-page">
@@ -50,7 +50,7 @@ export default function AuthLayout({ children, footer }) {
             <span className="auth-eyebrow">Factoring sob controle</span>
             <h1>Cheques, boletos e clientes em um só lugar.</h1>
             <p>
-              Uma operação de factoring exige confiança nos números. O sistema registra exatamente o que
+              Uma operação de factoring exige confiança nos números. O {appName} registra exatamente o que
               você informa e destaca o que precisa de atenção.
             </p>
           </div>
@@ -90,7 +90,7 @@ export default function AuthLayout({ children, footer }) {
         </div>
         {footer && <div className="auth-footer">{footer}</div>}
         <p className="auth-legal">
-          {appName} · v1.3 · Gestão Financeira Inteligente.
+          {appName} · v1.5 · Etapa 7 — relatório unificado e identidade visual personalizável.
         </p>
       </main>
     </div>

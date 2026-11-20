@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * FACTOR PRO — verificação completa (Etapa 4).
+ * FACTOR PRO — verificação completa (Etapa 6).
  *
- * Encadeia: testes do backend, build do frontend, smoke de interface e fluxos
- * funcionais. O backend precisa estar no ar em http://127.0.0.1:5000 para as
- * etapas de navegador. Retorna código de saída diferente de zero na primeira
- * falha, para uso local ou em CI.
+ * Encadeia: testes do backend, build do frontend, smoke de interface, fluxos
+ * funcionais e fluxo do módulo de empréstimos. O backend precisa estar no ar
+ * em http://127.0.0.1:5000 para as etapas de navegador. Retorna código de saída
+ * diferente de zero na primeira falha, para uso local ou em CI.
  */
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
@@ -53,5 +53,6 @@ run('Build do frontend', NPM, ['run', 'build'], FRONTEND, WINDOWS)
 await requireBackend()
 run('Smoke de interface e acessibilidade', process.execPath, ['scripts/browser_smoke.mjs'], ROOT)
 run('Fluxos funcionais de ponta a ponta', process.execPath, ['scripts/browser_flows.mjs'], ROOT)
+run('Fluxo de empréstimos', process.execPath, ['scripts/browser_loans.mjs'], ROOT)
 
 console.log('\nVerificação completa concluída com sucesso.')
