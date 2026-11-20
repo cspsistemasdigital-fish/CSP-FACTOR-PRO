@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "abrir": "powershell -NoProfile -ExecutionPolicy Bypass -File ../scripts/abrir-factorpro.ps1",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "echo \"(sem linter configurado)\"",

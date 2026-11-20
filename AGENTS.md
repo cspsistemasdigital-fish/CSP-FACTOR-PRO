@@ -23,6 +23,15 @@ Sistema profissional de gestão de factoring. As **oito etapas** do escopo estã
 | **7** | **Relatório Geral unificado** (cheques, boletos e empréstimos) e **identidade visual personalizável** (nome/ícone do app e logo real em todas as exportações)              | ✅ Concluída |
 | **8** | **Excel nas listagens**, **backup diário**, **atendente virtual** (texto/voz), **situação única** no Relatório Geral e **múltiplas fotos** em cheques/boletos/recebimentos | ✅ Concluída |
 
+### Atalho local de inicialização (Windows)
+
+- No terminal integrado do VS Code: `cd frontend; npm run abrir`.
+- O script `scripts/abrir-factorpro.ps1` inicia o Flask em segundo plano se necessário,
+  verifica `/api/health` e abre o app no navegador padrão em `http://127.0.0.1:5000`.
+- Esse endereço é local. Para compartilhar pelo WhatsApp com celulares/outros
+  computadores, é obrigatório usar um domínio público com HTTPS (ou uma rede/VPN
+  configurada para acesso externo); nunca compartilhar `localhost` como destino.
+
 > **Novas etapas ou módulos só começam com autorização explícita do usuário.**
 > Módulos ainda não construídos exibem uma página informativa honesta
 > (`PendingModule`) — nunca dados falsos.

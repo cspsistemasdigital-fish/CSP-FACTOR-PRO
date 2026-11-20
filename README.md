@@ -82,6 +82,21 @@ npm run build
 - **Administrador:** `admin@factorpro.com.br` / `Admin@12345`
 - No primeiro acesso o sistema **exige a troca da senha** (comportamento intencional).
 
+### Abrir rapidamente no navegador (Windows / VS Code)
+
+No terminal integrado do VS Code, execute:
+
+```powershell
+cd frontend
+npm run abrir
+```
+
+O comando inicia o Flask em segundo plano quando necessário, verifica se a API
+responde e abre `http://127.0.0.1:5000` no navegador padrão do computador. Para
+acessar pelo celular ou compartilhar pelo WhatsApp, é necessário publicar o sistema
+em um endereço HTTPS acessível pela internet; `127.0.0.1`/`localhost` só funcionam
+no próprio dispositivo.
+
 ---
 
 ## Empréstimos (Etapa 6)
