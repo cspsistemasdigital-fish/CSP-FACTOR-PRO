@@ -43,7 +43,7 @@ export default function Login() {
       await login(form.email.trim().toLowerCase(), form.password)
       toast.success('Bem-vindo de volta', 'Sessão iniciada com sucesso.')
       const from = location.state?.from?.pathname
-      navigate(from && from !== '/login' ? from : '/', { replace: true })
+      navigate(from && from !== '/login' ? from : '/dashboard', { replace: true })
     } catch (error) {
       const parsed = apiError(error)
       setErrors(parsed.errors || {})

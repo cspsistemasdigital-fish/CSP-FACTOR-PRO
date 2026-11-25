@@ -39,7 +39,7 @@ export default function ForcePasswordChange() {
       const { data } = await authApi.changePassword(form.current, form.password)
       setUser((current) => ({ ...current, must_change_password: false }))
       toast.success('Senha atualizada', data.message)
-      navigate('/', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (error) {
       const parsed = apiError(error)
       setErrors(parsed.errors || {})

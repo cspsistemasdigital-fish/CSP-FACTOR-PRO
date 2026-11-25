@@ -339,6 +339,13 @@ async function main() {
     await waitFor(cdp, "document.readyState === 'complete'", 'primeiro load')
     await sleep(900)
     await evaluate(cdp, PAGE_HELPERS)
+    await waitFor(cdp, '!!document.querySelector(".home-page")', 'homepage pública')
+    check(
+      'homepage apresenta chamada para login',
+      /Mais clareza/.test(await evaluate(cdp, 'document.body.innerText')) &&
+        (await evaluate(cdp, 'document.querySelector(".home-nav-cta")?.getAttribute("href")')) === '/login',
+    )
+    await audit(cdp, 'homepage')
 
     /* ---------------------------------------------------------------- login */
     await goto(cdp, '/login', { authenticated: false, ready: '!!document.querySelector("#field-email")' })
@@ -358,7 +365,7 @@ async function main() {
     await evaluate(cdp, '__setValue("#field-new_password", "FpSmoke@2026")')
     await evaluate(cdp, '__setValue("#field-confirm_password", "FpSmoke@2026")')
     await evaluate(cdp, '__click(\'button[type="submit"]\')')
-    await waitFor(cdp, "location.pathname === '/'", 'entrada no dashboard', 20000)
+    await waitFor(cdp, "location.pathname === '/dashboard'", 'entrada no dashboard', 20000)
     await waitFor(cdp, "document.querySelectorAll('.stat-grid > *').length >= 4", 'cards do dashboard', 20000)
     await sleep(900)
     check('dashboard mostra o nome do usuario', /Administrador/.test(await evaluate(cdp, 'document.querySelector(".topbar").innerText')))
@@ -376,11 +383,36 @@ async function main() {
     await shot(cdp, '04-dashboard-escuro')
     await audit(cdp, 'dashboard-escuro')
 
-    await goto(cdp, '/', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
+    await goto(cdp, '/dashboard', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
     check(
       'preferencia de tema persiste apos recarregar',
       (await evaluate(cdp, 'document.documentElement.getAttribute("data-theme")')) === 'dark',
     )
+
+    const cadastroOrder = await evaluate(
+      cdp,
+      'Array.from(document.querySelectorAll(".side-section")[1].querySelectorAll(".side-label")).map((item) => item.innerText)',
+    )
+    check(
+      'menu de cadastros segue a ordem solicitada',
+      JSON.stringify(cadastroOrder) === JSON.stringify(['Clientes', 'Empréstimos', 'Cheques', 'Boletos']),
+    )
+    await goto(cdp, '/agenda', { ready: '!!document.querySelector(".agenda-calendar")' })
+    check(
+      'agenda oferece visoes mensal, semanal e diaria',
+      await evaluate(cdp, 'document.querySelectorAll(".agenda-view-switch button").length') === 3,
+    )
+    await evaluate(cdp, '__click(\'.agenda-view-switch button:nth-child(2)\')')
+    check('agenda renderiza semana com sete dias', await evaluate(cdp, 'document.querySelectorAll(".agenda-calendar .agenda-day").length') === 7)
+    await evaluate(cdp, '__click(\'.agenda-view-switch button:nth-child(3)\')')
+    check('agenda renderiza visao diaria', await evaluate(cdp, 'document.querySelectorAll(".agenda-calendar .agenda-day").length') === 1)
+    await evaluate(cdp, '__click(\'.agenda-view-switch button:nth-child(1)\')')
+    check('agenda renderiza grade mensal', await evaluate(cdp, 'document.querySelectorAll(".agenda-calendar .agenda-day").length') === 42)
+    await audit(cdp, 'agenda')
+    await evaluate(cdp, '__click(".page-head-actions .btn")')
+    await waitFor(cdp, '!!document.querySelector(".agenda-modal")', 'formulário de compromisso')
+    check('agenda permite iniciar novo compromisso', await evaluate(cdp, '!!document.querySelector(".agenda-modal input[placeholder]")'))
+    await evaluate(cdp, '__click(".agenda-modal-head .agenda-icon-button")')
 
     /* --------------------------------------------------------------- listas */
     await goto(cdp, '/clientes', {
@@ -552,7 +584,7 @@ async function main() {
       mobile: true,
     })
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true })
-    await goto(cdp, '/', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
+    await goto(cdp, '/dashboard', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
     check(
       'menu mobile recolhido por padrao',
       !(await evaluate(cdp, '!!document.querySelector(".sidebar.mobile-open")')),
@@ -582,7 +614,7 @@ async function main() {
       mobile: false,
     })
     await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: false })
-    await goto(cdp, '/', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
+    await goto(cdp, '/dashboard', { ready: "document.querySelectorAll('.stat-grid > *').length >= 4" })
     await evaluate(cdp, '__click(".user-trigger")')
     await waitFor(cdp, '!!document.querySelector(".user-menu")', 'menu do usuario')
     await evaluate(cdp, '__click(\'.user-menu-item.danger\')')

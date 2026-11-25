@@ -1,5 +1,6 @@
 """Model package - import all models so Alembic autogenerate sees them."""
 from .audit import AuditAction, AuditLog  # noqa: F401
+from .agenda_event import AgendaEvent  # noqa: F401
 from .base import TimestampMixin, money, utcnow  # noqa: F401
 from .boleto import Boleto  # noqa: F401
 from .cheque import Cheque  # noqa: F401
@@ -24,6 +25,7 @@ from .user import Role, User  # noqa: F401
 __all__ = [
     "AuditAction",
     "AuditLog",
+    "AgendaEvent",
     "Boleto",
     "Cheque",
     "Client",

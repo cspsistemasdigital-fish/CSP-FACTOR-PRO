@@ -24,7 +24,7 @@ export default function AccessDenied({ adminOnly = false }) {
               : `O perfil ${user?.role_label || 'atual'} pode consultar os dados, mas não pode cadastrar ou alterar registros. Solicite a um administrador a mudança do seu perfil, se necessário.`
           }
         >
-          <Link to="/" className="btn btn-primary">
+          <Link to="/dashboard" className="btn btn-primary">
             <i className="bi bi-grid-1x2-fill" /> Voltar ao dashboard
           </Link>
           <Link to="/configuracoes" className="btn btn-light">

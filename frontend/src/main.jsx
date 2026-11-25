@@ -6,6 +6,8 @@ import 'bootstrap/dist/css/bootstrap.min.css'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 import './styles/app.css'
 import './styles/emprestimos.css'
+import './styles/home.css'
+import './styles/agenda.css'
 
 import App from './App'
 import { BrandProvider } from './context/BrandContext'

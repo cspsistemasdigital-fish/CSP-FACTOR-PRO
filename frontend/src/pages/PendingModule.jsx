@@ -24,7 +24,7 @@ export default function PendingModule({
         icon={icon}
         badge={<span className="fp-badge fp-badge-petroleum">Planejado · {stage}</span>}
       >
-        <Link to="/" className="btn btn-light">
+        <Link to="/dashboard" className="btn btn-light">
           <i className="bi bi-arrow-left" /> Voltar ao dashboard
         </Link>
       </PageHeader>

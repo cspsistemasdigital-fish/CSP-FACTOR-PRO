@@ -4,13 +4,13 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapa 8 + varredura de integração concluídas**. As entregas incluem exportação Excel em todas as listagens, backup diário, atendente virtual por texto/voz, fotos múltiplas, identidade visual e tema executivo, além de alertas de inadimplência e bloqueio manual/auditado de clientes. Verificação-base: 141 pytest + build + 101 smoke + 37 fluxos + 23 fluxo de empréstimos.
+Última atualização: **Etapa 8 + integração e ajustes de navegação/homepage/Agenda concluídos**. Além das entregas anteriores, a homepage pública direciona ao login e a Agenda compartilhada oferece visões mensal, semanal e diária, com CRUD auditado. Verificação desta entrega: 158 pytest + build + 112 smoke + 37 fluxos + 23 fluxo de empréstimos.
 
 ---
 
 ## 1. Visão geral
 
-Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas.
+Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas; a homepage e a Agenda compartilhada foram autorizadas e adicionadas como melhorias posteriores.
 
 | Etapa | Escopo                                                                                                                                                                     | Situação     |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
@@ -82,24 +82,24 @@ FACTOR PRO/
 │   │   ├── cli.py             ← seed, seed-demo, reset-admin-password, create-db, backup
 │   │   ├── api/               ← blueprints REST
 │   │   │   ├── auth.py  users.py  clients.py  cheques.py  boletos.py
-│   │   │   ├── operations.py  receipts.py  reports.py  loans.py
+│   │   │   ├── operations.py  receipts.py  reports.py  loans.py  agenda.py
 │   │   │   ├── dashboard.py  settings.py  documents_utils.py  list_exports.py
-│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, document, document_attachment, audit, setting, reset_token, report_filter, base
+│   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, agenda_event, document, document_attachment, audit, setting, reset_token, report_filter, base
 │   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding, backup, list_exports
 │   │   └── utils/             ← validators, responses, security (throttling), files
-│   ├── migrations/versions/   ← c9dc603b0320_initial_schema.py + 544a723c1e04_operations_and_receipts.py + 3746194c79fe_report_filters_per_user.py + 269e70536ab9_loans_and_installments.py + a7c4e1b9d2f3_document_attachments.py
-│   ├── tests/                 ← pytest (auth, clients, documents, operations, receipts, reports, report_filters, dashboard, users, production, loans, etapa7, backup, photos, list_exports)
+│   ├── migrations/versions/   ← migrações até a7c4e1b9d2f3_document_attachments.py + 1f4b8c2d9a30_shared_agenda_events.py
+│   ├── tests/                 ← pytest (inclui agenda, auth, clientes, documentos, operações, relatórios, empréstimos, backup, fotos e exportações)
 │   ├── instance/              ← factorpro.db + uploads/ + backups/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── App.jsx            ← árvore de rotas + guardas (páginas com React.lazy)
-│   │   ├── main.jsx  styles/app.css  styles/emprestimos.css
+│   │   ├── main.jsx  styles/app.css  styles/emprestimos.css  styles/home.css  styles/agenda.css
 │   │   ├── api/               ← client.js (axios + refresh), index.js (endpoints)
 │   │   ├── context/           ← AuthContext, ThemeContext, ToastContext, BrandContext
 │   │   ├── hooks/             ← useDebouncedValue, useInstallPrompt
 │   │   ├── components/        ← layout/ (AssistantWidget), ui/ (ExportXlsxButton, ProtectedImage), form/, documents/ (PhotoCapture), Logo.jsx
-│   │   ├── pages/             ← auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Dashboard, Settings (Backup diário), Admin
+│   │   ├── pages/             ← HomePage pública, Agenda, Dashboard, auth/, clients/, cheques/, boletos/, operacoes/, recebimentos/, recibos/, relatorios/, emprestimos/, Settings, Admin
 │   │   └── utils/format.js
 │   ├── public/                ← manifest.webmanifest, sw.js, favicon.svg, icons/
 │   ├── dist/                  ← build servido pelo Flask (single deployment)
@@ -160,7 +160,7 @@ Requer backend no ar em `http://127.0.0.1:5000`, Chrome em
 `C:\Program Files\Google\Chrome\Application\chrome.exe` e Node v22 (WebSocket global).
 
 ```powershell
-node scripts/browser_smoke.mjs   # 101/101 — telas, temas, responsivo, AA e seta única dos selects
+node scripts/browser_smoke.mjs   # 112/112 — telas, temas, responsivo, AA, homepage, agenda e menu
 node scripts/browser_flows.mjs   # 37/37 — CRUD real, divergência, auditoria, relatórios, filtros salvos e exportações
 node scripts/browser_loans.mjs   # 23/23 — empréstimos: parcelas, limite, duplicata, relatório e exportações
 ```
@@ -252,6 +252,7 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `settings`              | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`)                     |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at                                                                                                                                                                                                         |
 | `report_filters`        | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos)                                                                                                                       |
+| `agenda_events`         | title, start_at, end_at, location, description, color + timestamps/auditoria e **soft delete** — compromissos **compartilhados** entre usuários                                                                                                     |
 
 ### Enums
 
@@ -280,7 +281,8 @@ STATUS_CHANGE, PASSWORD_CHANGE, PASSWORD_RESET, EXPORT`.
 Todas as rotas exigem `Authorization: Bearer <access_token>`, exceto as de auth.
 Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 `{message, errors:{campo:msg}}`. Erros: **422** validação, **401/403/404/429**.
-`GET /api/health` é público.
+`GET /api/health` é público. A homepage pública fica em `/`; login em `/login` e
+Dashboard autenticado em `/dashboard`.
 
 | Recurso           | Rotas                                                                                                                                                                                                                                                                                                                                         |
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -296,6 +298,7 @@ Respostas: `{item}` · `{items, meta:{page,per_page,total,pages}, totals}` ·
 | **list exports**  | `GET /export/<resource>/xlsx` · `GET /export/resources` — resource: `clients`, `cheques`, `boletos`, `operations`, `receipts`, `loans` (todos os autenticados) e `users`, `audit` (ADMIN); mesmos filtros da listagem, sem paginação                                                                                                          |
 | **dashboard**     | `GET /summary` (filtros: date_from, date_to, client_id)                                                                                                                                                                                                                                                                                       |
 | **alerts**        | `GET /alerts` (autenticado) — clientes inadimplentes, total vencido e títulos em atraso; apenas informativo                                                                                                                                                                                                                                   |
+| **agenda**        | `GET /?start=AAAA-MM-DD&end=AAAA-MM-DD` (todos os autenticados) · `POST /` e `PUT /<id>` (ADMIN/OPERATOR) · `DELETE /<id>` (ADMIN, exclusão lógica); todos os eventos são compartilhados e auditados                                                                                                                                        |
 | **settings**      | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **backup**: `GET /backup` (todos) `PUT /backup` `POST /backup/run` `GET /backup/<name>/download` `DELETE /backup/<name>` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
 
 ### Convenções de payload
@@ -403,6 +406,8 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
 | Salvar/remover **os próprios** filtros de relatório                                                |  ✅   |    ✅    |   ✅   |
 | Administração (usuários + auditoria)                                                               |  ✅   |    ❌    |   ❌   |
 | Configurações da empresa e **identidade visual** (nome/logo do app) — editar                       |  ✅   |    ❌    |   ❌   |
+| Criar/editar compromissos na Agenda compartilhada                                                   |  ✅   |    ✅    |   ❌   |
+| Excluir compromissos da Agenda (lógica + auditoria)                                                  |  ✅   |    ❌    |   ❌   |
 
 ### Regras de proteção
 
@@ -442,6 +447,12 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   Ordenador por**. Novos selects devem seguir o mesmo padrão — uma única seta,
   alinhada como os demais campos. O smoke verifica essa checagem.
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
+- **Homepage e navegação**: `/` é a homepage pública institucional, com CTA para
+  `/login`; a área autenticada inicia em `/dashboard`. No menu, Visão geral contém
+  Dashboard e Agenda; Cadastros segue Clientes, Empréstimos, Cheques, Boletos.
+- **Agenda** (`/agenda`): eventos compartilhados, visualizações mês/semana/dia,
+  horário, local, descrição e cor; ADMIN/OPERATOR criam e editam, ADMIN exclui.
+  A tabela `agenda_events` usa exclusão lógica e auditoria; estilos em `styles/agenda.css`.
 - **Dashboard**: filtros em rascunho com botão **Aplicar** (presets aplicam na hora).
 - **Relatório Geral** (`/relatorios`): filtros em rascunho com **Aplicar**, presets de
   período, tipo (**Cheques, Boletos, Empréstimos** — `kind`) e **um único filtro
@@ -502,8 +513,8 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 
 | Suíte                     | Comando                                               | Resultado atual                               |
 | ------------------------- | ----------------------------------------------------- | --------------------------------------------- |
-| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **141 passed**                                |
-| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **101/101**                                   |
+| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **158 passed**                                |
+| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **112/112**                                   |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
 | Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **23/23**                                     |
 | Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
@@ -512,7 +523,7 @@ O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto 
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
 além das telas de operações, recebimentos, **Relatório Geral (6 abas, inclusive
 Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório) e
-a checagem de seta única dos selects**.
+a checagem de seta única dos selects**, a homepage pública e a Agenda (mês/semana/dia).
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ
 duplicado (422), cheque com divergência, boleto coerente, exclusão bloqueada, mudança de
 status, exclusão lógica, **auditoria conferida via API**, relatório consolidado,
@@ -542,7 +553,9 @@ DOM/estilo computado; os screenshots ficam para conferência humana.
 
 ## 10. Estado atual, pendências e próximos passos
 
-**Todas as oito etapas planejadas estão entregues e verificadas.** O sistema roda em
+**Todas as oito etapas planejadas estão entregues e verificadas.** A homepage pública,
+a Agenda compartilhada e a reorganização de navegação também foram entregues por
+solicitação explícita. O sistema roda em
 desenvolvimento em `http://127.0.0.1:5000` (Flask servindo o build do SPA) e está pronto
 para uso; a lista abaixo registra o que foi entregue em cada etapa.
 
@@ -785,9 +798,8 @@ cspsistemasdigital-fish`).
 - Múltiplas fotos: a captura real pela câmera (`capture="environment"`) depende do
   dispositivo e não é exercitada pelos testes; o upload sequencial, a galeria protegida,
   o isolamento por documento e o soft delete são cobertos por `tests/test_photos.py`.
-- Excel das listagens: a suíte de interface permanece com 101/101 porque não foram
-  adicionadas novas checagens de DOM; as rotas, permissões e o conteúdo do XLSX são
-  validados por `tests/test_list_exports.py`.
+- Excel das listagens: as rotas, permissões e o conteúdo do XLSX são validados por
+  `tests/test_list_exports.py`; o smoke atual também cobre a homepage e os controles da Agenda.
 
 ### Próximos passos recomendados (melhorias futuras, mediante autorização)
 

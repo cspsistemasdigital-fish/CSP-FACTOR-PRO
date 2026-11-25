@@ -22,7 +22,8 @@ const COMMANDS = [
     label: 'Relatório de Empréstimos',
   },
   { keys: ['relatorio geral', 'relatorios', 'relatorio', 'rel'], to: '/relatorios', label: 'Relatório Geral' },
-  { keys: ['dashboard', 'painel', 'visao geral', 'inicio', 'principal'], to: '/', label: 'Dashboard' },
+  { keys: ['dashboard', 'painel', 'visao geral', 'inicio', 'principal'], to: '/dashboard', label: 'Dashboard' },
+  { keys: ['agenda', 'compromissos', 'calendario', 'calendar'], to: '/agenda', label: 'Agenda' },
   { keys: ['clientes', 'cliente', 'sacado', 'emitente'], to: '/clientes', label: 'Clientes' },
   { keys: ['cheques', 'cheque'], to: '/cheques', label: 'Cheques' },
   { keys: ['boletos', 'boleto'], to: '/boletos', label: 'Boletos' },
@@ -91,7 +92,7 @@ export default function AssistantWidget() {
           ...current,
           makeMessage(
             'assistant',
-            'Posso abrir: Dashboard, Clientes, Cheques, Boletos, Operações, Recebimentos, Empréstimos, Relatório de Empréstimos, Relatório Geral, Configurações e Administração. É só falar ou digitar o nome.',
+            'Posso abrir: Dashboard, Agenda, Clientes, Empréstimos, Cheques, Boletos, Operações, Recebimentos, Relatório de Empréstimos, Relatório Geral, Configurações e Administração. É só falar ou digitar o nome.',
           ),
         ])
         return

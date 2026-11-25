@@ -12,8 +12,10 @@ const Login = lazy(() => import('./pages/auth/Login'))
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
 const ForcePasswordChange = lazy(() => import('./pages/auth/ForcePasswordChange'))
+const HomePage = lazy(() => import('./pages/HomePage'))
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Agenda = lazy(() => import('./pages/Agenda'))
 const ClientsList = lazy(() => import('./pages/clients/ClientsList'))
 const ClientForm = lazy(() => import('./pages/clients/ClientForm'))
 const ClientDetail = lazy(() => import('./pages/clients/ClientDetail'))
@@ -66,7 +68,7 @@ function RequireAuth() {
 function RequireGuest() {
   const { user, booting } = useAuth()
   if (booting) return <BootScreen />
-  if (user) return <Navigate to={user.must_change_password ? '/trocar-senha' : '/'} replace />
+  if (user) return <Navigate to={user.must_change_password ? '/trocar-senha' : '/dashboard'} replace />
   return <Outlet />
 }
 
@@ -74,7 +76,7 @@ function RequirePasswordChange() {
   const { user, booting } = useAuth()
   if (booting) return <BootScreen />
   if (!user) return <Navigate to="/login" replace />
-  if (!user.must_change_password) return <Navigate to="/" replace />
+  if (!user.must_change_password) return <Navigate to="/dashboard" replace />
   return <Outlet />
 }
 
@@ -94,6 +96,8 @@ export default function App() {
   return (
     <Suspense fallback={<BootScreen label="Carregando tela…" />}>
       <Routes>
+        <Route path="/" element={<HomePage />} />
+
         <Route element={<RequireGuest />}>
           <Route path="/login" element={<Login />} />
           <Route path="/esqueci-senha" element={<ForgotPassword />} />
@@ -106,7 +110,8 @@ export default function App() {
 
         <Route element={<RequireAuth />}>
           <Route element={<AppLayout />}>
-            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="agenda" element={<Agenda />} />
 
             <Route path="clientes" element={<ClientsList />} />
             <Route path="clientes/:id" element={<ClientDetail />} />

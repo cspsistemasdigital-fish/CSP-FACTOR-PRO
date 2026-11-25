@@ -18,7 +18,7 @@ export default function NotFound() {
           Verifique o link ou volte para o dashboard.
         </p>
         <div className="notfound-actions">
-          <Link to="/" className="btn btn-primary">
+          <Link to="/dashboard" className="btn btn-primary">
             <i className="bi bi-grid-1x2-fill" /> Ir para o dashboard
           </Link>
           <Link to="/clientes" className="btn btn-light">

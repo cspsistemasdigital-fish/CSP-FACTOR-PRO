@@ -14,6 +14,13 @@ export const dashboardApi = {
   summary: (params) => api.get('/dashboard/summary', { params }),
 }
 
+export const agendaApi = {
+  list: (params) => api.get('/agenda', { params }),
+  create: (payload) => api.post('/agenda', payload),
+  update: (id, payload) => api.put(`/agenda/${id}`, payload),
+  remove: (id) => api.delete(`/agenda/${id}`),
+}
+
 export const alertsApi = {
   list: () => api.get('/alerts'),
 }

@@ -246,7 +246,7 @@ async function main() {
     await evaluate(cdp, `__setValue("#field-new_password", "${NEW_PASSWORD}")`)
     await evaluate(cdp, `__setValue("#field-confirm_password", "${NEW_PASSWORD}")`)
     await evaluate(cdp, '__click(\'button[type="submit"]\')')
-    await waitFor(cdp, "location.pathname === '/'", 'entrada no dashboard', 20000)
+    await waitFor(cdp, "location.pathname === '/dashboard'", 'entrada no dashboard', 20000)
     check('login e troca de senha concluidos', true)
 
     /* -------------------------------------------------- 1. cadastrar cliente */

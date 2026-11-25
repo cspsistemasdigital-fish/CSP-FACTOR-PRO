@@ -4,7 +4,7 @@ Sistema profissional de gestão de **factoring**: cadastro de clientes, cheques,
 boletos e **empréstimos com parcelas**, com controle de limites, alertas de
 vencimento e divergência de valores, auditoria completa e interface PWA responsiva
 (tema claro executivo e escuro), alertas de inadimplência e bloqueio manual/auditado
-de clientes.
+de clientes, com homepage institucional e Agenda compartilhada para compromissos.
 
 > **Regra soberana:** o sistema **nunca** calcula juros, descontos, taxas ou encargos.
 > Todo valor é informado pelo usuário e gravado exatamente como digitado. O sistema
@@ -21,6 +21,8 @@ Geral unificado** (cheques, boletos e empréstimos) com **identidade visual
 personalizável** — nome e logo do aplicativo em todas as exportações (Etapa 7); e
 **Excel nas listagens, backup diário, atendente virtual por texto/voz, situação única
 no Relatório Geral e múltiplas fotos** em cheques/boletos/recebimentos (Etapa 8).
+Também inclui a homepage pública, a Agenda compartilhada (visões mensal, semanal e
+diária) e a reorganização de navegação solicitadas.
 
 ---
 
@@ -78,7 +80,8 @@ npm run build
 
 ### 3. Acesso
 
-- URL: <http://127.0.0.1:5000> (ou <http://localhost:5173> em modo dev)
+- Homepage: <http://127.0.0.1:5000> (ou <http://localhost:5173> em modo dev)
+- Login: botão **Acessar sistema** na homepage; área autenticada: `/dashboard`.
 - **Administrador:** `admin@factorpro.com.br` / `Admin@12345`
 - No primeiro acesso o sistema **exige a troca da senha** (comportamento intencional).
 
@@ -101,7 +104,7 @@ no próprio dispositivo.
 
 ## Empréstimos (Etapa 6)
 
-- Menu **Financeiro → Empréstimos** e **Rel. Empréstimos**.
+- Menu **Cadastros → Empréstimos**; o relatório permanece em **Financeiro → Rel. Empréstimos**.
 - Cadastro com busca do cliente pelo próprio cadastro, limite/exposição projetados,
   valor emprestado, valor recebido e **lucro informado** (nunca calculado).
 - Parcelas e vencimentos gerados por quantidade/1º vencimento/periodicidade e
@@ -117,6 +120,20 @@ no próprio dispositivo.
 - API: `/api/loans` (CRUD, status e parcelas), `/api/loans/report/summary`,
   `/api/loans/report/export/pdf|xlsx`, `/api/loans/report/whatsapp`,
   `/api/loans/report/email` e `/api/loans/<id>/duplicata`.
+
+---
+
+## Agenda compartilhada
+
+- Disponível em **Visão geral → Agenda**, com navegação por mês, semana e dia,
+  seleção de data, compromissos com horário, local, descrição e cor.
+- Os compromissos são compartilhados entre os usuários. ADMIN e OPERATOR podem criar
+  e editar; somente ADMIN pode excluir. Consultores podem visualizar.
+- As exclusões são lógicas e as alterações são registradas na auditoria.
+- API: `GET /api/agenda?start=AAAA-MM-DD&end=AAAA-MM-DD`, `POST /api/agenda`,
+  `PUT /api/agenda/<id>` e `DELETE /api/agenda/<id>`.
+- A migração `1f4b8c2d9a30_shared_agenda_events.py` cria a tabela `agenda_events`.
+  Após atualizar o código, aplique-a com `cd backend; .\.venv\Scripts\flask.exe db upgrade`.
 
 ---
 

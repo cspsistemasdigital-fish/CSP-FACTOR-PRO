@@ -8,12 +8,16 @@ import Logo from '../Logo'
 const NAV_SECTIONS = [
   {
     label: 'Visão geral',
-    items: [{ to: '/', label: 'Dashboard', icon: 'bi-grid-1x2-fill', end: true }],
+    items: [
+      { to: '/dashboard', label: 'Dashboard', icon: 'bi-grid-1x2-fill' },
+      { to: '/agenda', label: 'Agenda', icon: 'bi-calendar2-week-fill' },
+    ],
   },
   {
     label: 'Cadastros',
     items: [
       { to: '/clientes', label: 'Clientes', icon: 'bi-people-fill' },
+      { to: '/emprestimos', label: 'Empréstimos', icon: 'bi-cash-stack' },
       { to: '/cheques', label: 'Cheques', icon: 'bi-journal-check' },
       { to: '/boletos', label: 'Boletos', icon: 'bi-receipt' },
     ],
@@ -23,7 +27,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/operacoes', label: 'Operações', icon: 'bi-arrow-left-right' },
       { to: '/recebimentos', label: 'Recebimentos', icon: 'bi-cash-coin' },
-      { to: '/emprestimos', label: 'Empréstimos', icon: 'bi-cash-stack' },
       { to: '/emprestimos/relatorio', label: 'Rel. Empréstimos', icon: 'bi-bar-chart-line' },
       { to: '/relatorios', label: 'Relatórios', icon: 'bi-graph-up-arrow' },
     ],
