@@ -4,7 +4,7 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Lucro automático no novo empréstimo**. O formulário calcula o lucro como valor emprestado menos valor recebido, mantendo-o oculto até o usuário revelar; o campo é somente leitura no cadastro. Build OK e fluxo de empréstimos 37/37.
+Última atualização: **Preparação do piloto PWA no Render + Neon**. Dockerfile multi-stage compila o frontend e serve-o pelo Flask no mesmo domínio; Render Blueprint executa migrações e seed no início. Frontend build OK, backend 162 testes; configuração gratuita documentada como piloto, com avisos de serviço em suspensão e arquivos temporários.
 
 ---
 
@@ -73,6 +73,10 @@ Os únicos valores derivados são **comparações** usadas para alertas:
 ```
 FACTOR PRO/
 ├── AGENTS.md                  ← este arquivo (memória técnica)
+├── .dockerignore              ← exclui segredos, dados locais e dependências da imagem
+├── Dockerfile                 ← build do PWA + runtime Flask/Gunicorn
+├── render.yaml                ← Blueprint do serviço gratuito Render
+├── deploy/render-start.sh     ← migrações, seed idempotente e inicialização WSGI
 ├── README.md                  ← como instalar e rodar
 ├── PROGRESSO.md               ← memo de retomada das etapas concluídas (até Etapa 7; Etapa 8 neste arquivo)
 ├── .gitignore
@@ -90,7 +94,7 @@ FACTOR PRO/
 │   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding, backup, list_exports
 │   │   └── utils/             ← validators, responses, security (throttling), files
 │   ├── migrations/versions/   ← migrações até a7c4e1b9d2f3_document_attachments.py + 1f4b8c2d9a30_shared_agenda_events.py + 2a9c6d1e4f80_link_loans_to_operations.py
-│   ├── tests/                 ← pytest (inclui agenda, auth, clientes, documentos, operações, relatórios, empréstimos, backup, fotos e exportações)
+│   ├── tests/                 ← pytest (inclui agenda, auth, CLI, clientes, documentos, operações, relatórios, empréstimos, backup, fotos e exportações)
 │   ├── instance/              ← factorpro.db + uploads/ + backups/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
 ├── frontend/
@@ -536,7 +540,7 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 
 | Suíte                     | Comando                                               | Resultado atual                               |
 | ------------------------- | ----------------------------------------------------- | --------------------------------------------- |
-| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **161 passed**                                |
+| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **162 passed**                                |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **137/139** (2 falhas preexistentes fora do escopo) |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
 | Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **37/37**                                     |
@@ -799,11 +803,18 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Formulário de empréstimo** oculta o lucro por padrão, oferece cadastro contextual
   de cliente com retorno e preservação do rascunho, além de uma promissória para impressão
   em página única, sem textos complementares de minuta ou conferência.
-- **Validação desta entrega**: 161 testes backend, build, smoke 119/119, fluxos 37/37 e
+- **Validação desta entrega**: 162 testes backend, build, smoke 119/119, fluxos 37/37 e
   empréstimos 33/33, estes três últimos executados contra base descartável isolada.
 
 ### Pendências conhecidas / observações
 
+- **Hospedagem de piloto**: `Dockerfile`, `render.yaml` e `deploy/render-start.sh`
+  publicam o PWA e a API Flask no mesmo domínio Render e usam PostgreSQL externo
+  (Neon). A configuração free é apenas para demonstração: o serviço pode dormir e
+  acordar lentamente; o filesystem do Render é efêmero, então fotos/logo/backups não
+  são duráveis. SMTP deve usar porta 2525 porque as portas 25/465/587 são bloqueadas
+  no Render. Não inserir dados reais de clientes até migrar para infraestrutura
+  persistente, com backups e armazenamento durável dos anexos.
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
   credenciais no ambiente); a construção da mensagem, o caminho de envio e a tolerância
   a falhas estão cobertos por testes.

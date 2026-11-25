@@ -50,7 +50,10 @@ def register_cli(app):
         click.echo("=" * 62)
         if created:
             click.echo(f" Administrador criado: {email}")
-            click.echo(f" Senha inicial: {app.config['ADMIN_PASSWORD']}")
+            if app.config.get("DEBUG") and not app.config.get("TESTING"):
+                click.echo(f" Senha inicial: {app.config['ADMIN_PASSWORD']}")
+            else:
+                click.echo(" Senha inicial configurada pelo ambiente; não exibida nos logs.")
             click.echo(" Altere a senha no primeiro acesso.")
         else:
             click.echo(f" Administrador já existente: {email}")

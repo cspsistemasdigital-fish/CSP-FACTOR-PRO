@@ -256,7 +256,7 @@ no próprio dispositivo.
 ## Testes
 
 ```powershell
-# Backend — 161 testes
+# Backend — 162 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
 # Interface — smoke + acessibilidade (119), fluxos (37) e empréstimos (33)
@@ -311,6 +311,43 @@ AGENTS.md   Memória técnica do projeto (leia antes de contribuir)
 
 Em produção o app **recusa** iniciar com SQLite, com secrets de desenvolvimento ou
 sem `MAIL_SERVER`. Defina `EXPOSE_RESET_TOKEN=false` (padrão em produção).
+
+### Piloto gratuito no Render + Neon
+
+O repositório inclui um `Dockerfile` e um Blueprint `render.yaml` para publicar o
+frontend/PWA e a API Flask no **mesmo endereço HTTPS** do Render. O banco PostgreSQL
+fica no Neon; não use o PostgreSQL gratuito do Render, que expira após 30 dias. Esta
+configuração é para demonstração/piloto, não para guardar dados reais de clientes:
+o serviço gratuito do Render pode dormir após 15 minutos sem tráfego e seu sistema de
+arquivos é temporário. Fotos, logotipo e arquivos de backup locais podem desaparecer
+em reinicializações ou novos deploys.
+
+1. Crie um projeto PostgreSQL no Neon e copie a URL de conexão com SSL. Use-a como
+   `DATABASE_URL` no formato `postgresql+psycopg2://...`.
+2. No Render, escolha **New → Blueprint**, conecte este repositório e selecione o
+   `render.yaml`. O serviço terá o endereço `https://factor-pro.onrender.com`; se o
+   Render atribuir outro endereço, atualize `FRONTEND_BASE_URL` nas variáveis do
+   serviço.
+3. Preencha no Render as variáveis marcadas como secret: `DATABASE_URL`,
+   `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `MAIL_SERVER`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+   e `MAIL_DEFAULT_SENDER`. O Blueprint gera `SECRET_KEY` e `JWT_SECRET_KEY`.
+   Use uma senha inicial forte e exclusiva; o primeiro login exigirá a troca.
+4. Configure um provedor SMTP que aceite STARTTLS na porta `2525`. O Render bloqueia
+   as portas SMTP comuns `25`, `465` e `587`; sem `MAIL_SERVER`, o backend recusa
+   iniciar.
+5. Aguarde o deploy ficar **Live** e teste `https://factor-pro.onrender.com/api/health`.
+   A cada início, o container executa `flask db upgrade` e o comando idempotente
+   `flask seed` antes de iniciar o servidor.
+6. No celular, abra o mesmo endereço HTTPS. No Android/Chrome, use **Instalar app**
+   ou **Adicionar à tela inicial**; no iPhone/Safari, use **Compartilhar → Adicionar
+   à Tela de Início**. Esse é o link do PWA instalável; não é um APK nem publicação
+   na Play Store/App Store.
+
+No plano gratuito, a primeira abertura depois de um período ocioso pode demorar cerca
+de um minuto enquanto o serviço desperta. O Neon gratuito também suspende o banco
+ocioso. Não ative o backup diário como se fosse uma cópia durável: os arquivos locais
+do serviço Render são efêmeros. Para uso comercial, migre para serviços pagos com
+armazenamento persistente, backups testados e armazenamento durável dos anexos.
 
 ---
 

@@ -1,0 +1,13 @@
+.git
+.gitignore
+.dockerignore
+**/__pycache__
+**/.pytest_cache
+**/.venv
+**/node_modules
+**/.env
+**/.flaskenv
+backend/instance
+frontend/dist
+frontend/.vite
+logs
