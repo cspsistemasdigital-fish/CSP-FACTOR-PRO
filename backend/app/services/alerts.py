@@ -26,6 +26,7 @@ def build_alerts() -> dict:
             data = exposure.get(client.id) or {}
             amount = Decimal(data.get("overdue_amount") or 0)
             count = int(data.get("overdue_documents") or 0)
+            count_label = "item vencido" if count == 1 else "itens vencidos"
             total += amount
             document_count += count
             reason = (
@@ -43,26 +44,29 @@ def build_alerts() -> dict:
                     "whatsapp": client.whatsapp,
                     "overdue_amount": float(amount.quantize(Decimal("0.01"))),
                     "overdue_documents": count,
+                    "overdue_count": count,
                     "is_blocked": bool(client.is_blocked),
                     "blocked_reason": client.blocked_reason,
                     "message": (
-                        f"{client.name} ({client.code}) possui {count} título(s) vencido(s) "
+                        f"{client.name} ({client.code}) possui {count} {count_label} "
                         f"totalizando {amount.quantize(Decimal('0.01')):,.2f} em atraso. {reason}".strip()
                     ),
                 }
             )
 
     if items:
+        overdue_label = "item vencido" if document_count == 1 else "itens vencidos"
         headline = (
-            f"{len(items)} cliente(s) com títulos vencidos e {document_count} título(s) em atraso."
+            f"{len(items)} cliente(s) com itens vencidos: {document_count} {overdue_label}."
         )
     else:
-        headline = "Nenhum título vencido no momento."
+        headline = "Nenhum item vencido no momento."
 
     return {
         "items": items,
         "client_count": len(items),
         "document_count": document_count,
+        "overdue_count": document_count,
         "total_amount": float(total.quantize(Decimal("0.01"))),
         "message": headline,
         "generated_at": iso(utcnow()),

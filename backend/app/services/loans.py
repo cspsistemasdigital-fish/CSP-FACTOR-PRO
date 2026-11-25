@@ -180,6 +180,8 @@ def client_limit_info(client_id: int, *, additional_amount: Decimal | None = Non
 def build_loan_payload(payload: dict, existing: Loan | None = None) -> dict:
     errors: dict[str, str] = {}
     client = _resolve_client(payload, errors, require_active=existing is None)
+    if existing and existing.operation_id and client and client.id != existing.client_id:
+        errors["client_id"] = "Não é possível trocar o cliente de um empréstimo vinculado a uma operação."
 
     try:
         loan_date = parse_date(

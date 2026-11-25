@@ -178,6 +178,36 @@ export default function OperacaoDetail() {
           hint="Soma dos líquidos informados"
         />
       </div>
+      <div className="stat-grid stat-grid-4 mt-3">
+        <SummaryTile
+          label="Empréstimos"
+          value={formatNumber(totals.loans || 0)}
+          icon="bi-cash-coin"
+          tone="light"
+          hint="Vinculados a esta operação"
+        />
+        <SummaryTile
+          label="Valor emprestado"
+          value={formatBRL(totals.loan_amount || 0)}
+          icon="bi-cash-stack"
+          tone="petroleum"
+          hint="Valores informados"
+        />
+        <SummaryTile
+          label="Recebido pelo cliente"
+          value={formatBRL(totals.loan_received_amount || 0)}
+          icon="bi-wallet2"
+          tone="green"
+          hint="Valores informados"
+        />
+        <SummaryTile
+          label="Lucro informado"
+          value={formatBRL(totals.loan_profit_amount || 0)}
+          icon="bi-graph-up"
+          tone="warning"
+          hint="Sem cálculo automático"
+        />
+      </div>
 
       <div className="detail-layout">
         <div className="detail-main">
@@ -246,6 +276,47 @@ export default function OperacaoDetail() {
               emptyTitle="Nenhum documento vinculado"
               emptyMessage="Edite a operação para incluir cheques e boletos deste cliente."
             />
+          </Panel>
+
+          <Panel
+            title="Empréstimos vinculados"
+            subtitle="Empréstimos do mesmo cliente, apresentados separadamente dos documentos."
+            icon="bi-cash-coin"
+          >
+            {item.loans?.length ? (
+              <div className="table-responsive fp-table-wrap">
+                <table className="table fp-table align-middle">
+                  <thead>
+                    <tr>
+                      <th>Código</th>
+                      <th>Data</th>
+                      <th>Situação</th>
+                      <th className="text-end">Emprestado</th>
+                      <th className="text-end">Recebido</th>
+                      <th className="text-end">Lucro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {item.loans.map((loan) => (
+                      <tr key={loan.id}>
+                        <td><Link to={`/emprestimos/${loan.id}`} className="inline-link">{loan.code}</Link></td>
+                        <td>{formatDate(loan.loan_date)}</td>
+                        <td><StatusBadge status={loan.status} size="sm" /></td>
+                        <td className="text-end money-cell">{formatBRL(loan.loan_amount)}</td>
+                        <td className="text-end money-cell">{formatBRL(loan.received_amount)}</td>
+                        <td className="text-end money-cell">{formatBRL(loan.profit_amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyState
+                icon="bi-cash-coin"
+                title="Nenhum empréstimo vinculado"
+                message="Edite a operação para incluir empréstimos deste cliente."
+              />
+            )}
           </Panel>
 
           <Panel title="Histórico e auditoria" subtitle="Registro imutável das alterações desta operação." icon="bi-clock-history">

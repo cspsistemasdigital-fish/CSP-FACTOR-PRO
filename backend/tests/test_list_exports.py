@@ -80,6 +80,18 @@ def test_export_all_domain_lists(client, admin_headers, make_client, make_cheque
         headers=admin_headers,
     ).get_json()["item"]
 
+    operation = client.put(
+        f"/api/operations/{operation['id']}",
+        json={
+            "client_id": owner["id"],
+            "operation_date": date.today().isoformat(),
+            "description": "OPERAÇÃO-EXPORT",
+            "documents": [{"kind": "CHEQUE", "id": cheque["id"]}],
+            "loan_ids": [loan["id"]],
+        },
+        headers=admin_headers,
+    ).get_json()["item"]
+
     expectations = {
         "cheques": cheque["code"],
         "boletos": boleto["code"],
@@ -92,6 +104,18 @@ def test_export_all_domain_lists(client, admin_headers, make_client, make_cheque
         values = list(wb.active.iter_rows(min_row=5, values_only=True))
         assert any(row[0] == code for row in values), (resource, values)
         assert wb.active.freeze_panes == "A5"
+
+    operation_sheet = _workbook(
+        client.get("/api/export/operations/xlsx", headers=admin_headers)
+    ).active
+    operation_row = next(
+        row for row in operation_sheet.iter_rows(min_row=5, values_only=True)
+        if row[0] == operation["code"]
+    )
+    assert operation_row[9] == 1
+    assert operation_row[10] == 12000.0
+    assert operation_row[11] == 10000.0
+    assert operation_row[12] == 2000.0
 
     # Identifiers typed in the forms are exported as well.
     for resource, identifier in (("cheques", "CHQ-EXPORT"), ("boletos", "BOL-EXPORT")):

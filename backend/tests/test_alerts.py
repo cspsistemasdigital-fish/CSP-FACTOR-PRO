@@ -41,6 +41,42 @@ def test_overdue_alert_reports_client_amount_and_message(client, admin_headers, 
     assert "em atraso" in alert["message"]
 
 
+def test_overdue_client_filter_includes_loan_installments(
+    client, admin_headers, make_client
+):
+    customer = make_client(name="Cliente com parcela vencida", document="529.982.247-25")
+    created = client.post(
+        "/api/loans",
+        json={
+            "client_id": customer["id"],
+            "loan_date": (date.today() - timedelta(days=60)).isoformat(),
+            "loan_amount": "1000.00",
+            "received_amount": "1000.00",
+            "installments": [
+                {
+                    "due_date": (date.today() - timedelta(days=5)).isoformat(),
+                    "amount": "500.00",
+                },
+                {
+                    "due_date": (date.today() + timedelta(days=5)).isoformat(),
+                    "amount": "500.00",
+                },
+            ],
+        },
+        headers=admin_headers,
+    )
+    assert created.status_code == 201, created.get_json()
+
+    filtered = client.get("/api/clients?overdue=1", headers=admin_headers)
+    assert filtered.status_code == 200
+    assert [item["id"] for item in filtered.get_json()["items"]] == [customer["id"]]
+    assert filtered.get_json()["items"][0]["summary"]["overdue_documents"] == 1
+
+    alerts = client.get("/api/alerts", headers=admin_headers).get_json()
+    assert alerts["client_count"] == 1
+    assert alerts["items"][0]["overdue_documents"] == 1
+
+
 def test_block_requires_reason_and_is_audited(client, admin_headers, make_client):
     item = make_client(name="Cliente para Bloquear", document="529.982.247-25")
     url = f"/api/clients/{item['id']}/block"

@@ -36,6 +36,7 @@ const EmprestimoForm = lazy(() => import('./pages/emprestimos/EmprestimoForm'))
 const EmprestimoDetail = lazy(() => import('./pages/emprestimos/EmprestimoDetail'))
 const RelatorioEmprestimos = lazy(() => import('./pages/emprestimos/RelatorioEmprestimos'))
 const EmprestimoPrint = lazy(() => import('./pages/emprestimos/EmprestimoPrint'))
+const EmprestimoPromissoria = lazy(() => import('./pages/emprestimos/EmprestimoPromissoria'))
 const ReciboPrint = lazy(() => import('./pages/recibos/ReciboPrint'))
 const Relatorios = lazy(() => import('./pages/relatorios/Relatorios'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -160,6 +161,7 @@ export default function App() {
 
           <Route path="recibos/:id/imprimir" element={<ReciboPrint />} />
           <Route path="emprestimos/:id/duplicata" element={<EmprestimoPrint />} />
+          <Route path="emprestimos/promissoria" element={<EmprestimoPromissoria />} />
         </Route>
       </Routes>
     </Suspense>

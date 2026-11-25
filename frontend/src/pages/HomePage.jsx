@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { LogoMark } from '../components/Logo'
 import { useAuth } from '../context/AuthContext'
 import { useBrand } from '../context/BrandContext'
+import { useTheme } from '../context/ThemeContext'
 
 const FEATURES = [
   {
@@ -24,6 +25,7 @@ const FEATURES = [
 export default function HomePage() {
   const { appName, logoUrl } = useBrand()
   const { user } = useAuth()
+  const { isDark, toggle } = useTheme()
   const accessPath = user ? '/dashboard' : '/login'
 
   return (
@@ -40,6 +42,16 @@ export default function HomePage() {
           <a href="#solucoes">Soluções</a>
           <a href="#diferenciais">Diferenciais</a>
         </nav>
+        <button
+          type="button"
+          className="home-theme-toggle"
+          onClick={toggle}
+          aria-label={`Ativar modo ${isDark ? 'claro' : 'escuro'}`}
+          title={`Ativar modo ${isDark ? 'claro' : 'escuro'}`}
+        >
+          <i className={`bi ${isDark ? 'bi-sun-fill' : 'bi-moon-stars-fill'}`} aria-hidden="true" />
+          <span>{isDark ? 'Claro' : 'Escuro'}</span>
+        </button>
         <Link className="home-nav-cta" to={accessPath}>
           Acessar sistema <i className="bi bi-arrow-up-right" />
         </Link>

@@ -108,7 +108,7 @@ export default function OperacoesList() {
     <div className="page">
       <PageHeader
         title="Operações"
-        subtitle="Cada operação reúne cheques e boletos de um mesmo cliente. Os totais são sempre derivados dos documentos vinculados — nunca recalculados."
+        subtitle="Cada operação reúne itens de um mesmo cliente. Cheques, boletos e empréstimos são totalizados separadamente a partir dos valores informados."
         icon="bi-arrow-left-right"
       >
         <ExportXlsxButton resource="operations" params={exportParams} />
@@ -139,6 +139,13 @@ export default function OperacoesList() {
           icon="bi-collection"
           tone="light"
           hint="Cheques e boletos agrupados"
+        />
+        <SummaryTile
+          label="Empréstimos vinculados"
+          value={formatNumber(totals.loans || 0)}
+          icon="bi-cash-coin"
+          tone="warning"
+          hint="Empréstimos agrupados"
         />
         <SummaryTile
           label="Valor nominal"
@@ -292,7 +299,9 @@ export default function OperacoesList() {
                   <th>Cliente</th>
                   <th>Data</th>
                   <th className="text-center">Documentos</th>
+                  <th className="text-center">Empréstimos</th>
                   <th className="text-end">Nominal</th>
+                  <th className="text-end">Valor emprestado</th>
                   <th className="text-end">Líquido</th>
                   <th>Situação</th>
                   <th aria-label="Abrir" />
@@ -327,7 +336,11 @@ export default function OperacoesList() {
                     <td className="text-center">
                       <span className="type-chip">{item.documents_count} doc.</span>
                     </td>
+                    <td className="text-center">
+                      <span className="type-chip">{item.loans_count || 0}</span>
+                    </td>
                     <td className="text-end money-cell">{formatBRL(item.totals?.nominal)}</td>
+                    <td className="text-end money-cell">{formatBRL(item.totals?.loan_amount)}</td>
                     <td className="text-end money-cell">{formatBRL(item.totals?.net)}</td>
                     <td>
                       <StatusBadge status={item.status} size="sm" />
@@ -361,6 +374,10 @@ export default function OperacoesList() {
                   <span>
                     Nominal
                     <strong>{formatBRL(item.totals?.nominal)}</strong>
+                  </span>
+                  <span>
+                    Empréstimos ({item.loans_count || 0})
+                    <strong>{formatBRL(item.totals?.loan_amount)}</strong>
                   </span>
                   <span>
                     Líquido

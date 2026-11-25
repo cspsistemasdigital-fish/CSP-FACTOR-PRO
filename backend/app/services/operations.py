@@ -23,6 +23,8 @@ from ..models import (
     ClientStatus,
     DocumentKind,
     DocumentStatus,
+    Loan,
+    LoanStatus,
     Operation,
     OperationStatus,
     Role,
@@ -93,6 +95,28 @@ def _parse_document_keys(raw) -> list[tuple[str, int]]:
     return parsed
 
 
+def _parse_loan_ids(raw) -> list[int]:
+    if raw in (None, ""):
+        return []
+    if not isinstance(raw, list):
+        raise ValidationError({"loan_ids": "Lista de empréstimos inválida."})
+    parsed = []
+    seen = set()
+    for raw_id in raw:
+        try:
+            loan_id = int(raw_id)
+        except (TypeError, ValueError):
+            raise ValidationError({"loan_ids": "Identificador de empréstimo inválido."})
+        if loan_id < 1:
+            raise ValidationError({"loan_ids": "Identificador de empréstimo inválido."})
+        if loan_id not in seen:
+            seen.add(loan_id)
+            parsed.append(loan_id)
+    if len(parsed) > MAX_DOCUMENTS:
+        raise ValidationError({"loan_ids": f"Uma operação pode reunir no máximo {MAX_DOCUMENTS} empréstimos."})
+    return parsed
+
+
 def _load_documents(
     keys: list[tuple[str, int]], client_id: int, errors: dict, operation: Operation | None
 ) -> list:
@@ -116,9 +140,39 @@ def _load_documents(
     return documents
 
 
+def _load_loans(
+    loan_ids: list[int], client_id: int, errors: dict, operation: Operation | None
+) -> list[Loan]:
+    loans = []
+    for loan_id in loan_ids:
+        loan = db.session.get(Loan, loan_id)
+        if not loan or loan.is_deleted:
+            errors["loan_ids"] = f"Empréstimo #{loan_id} não encontrado."
+            continue
+        if loan.client_id != client_id:
+            errors["loan_ids"] = (
+                f"O empréstimo {loan.code} pertence a outro cliente. "
+                "Uma operação reúne itens de um único cliente."
+            )
+            continue
+        if loan.status == LoanStatus.CANCELLED:
+            errors["loan_ids"] = f"O empréstimo {loan.code} está cancelado."
+            continue
+        if loan.operation_id and (operation is None or loan.operation_id != operation.id):
+            errors["loan_ids"] = f"O empréstimo {loan.code} já pertence a outra operação."
+            continue
+        loans.append(loan)
+    return loans
+
+
 def _set_operation_link(document, operation: Operation | None, user_id: int | None) -> None:
     document.operation = operation
     document.updated_by_id = user_id
+
+
+def _set_loan_link(loan: Loan, operation: Operation | None, user_id: int | None) -> None:
+    loan.operation = operation
+    loan.updated_by_id = user_id
 
 
 def build_operation_payload(payload: dict, existing: Operation | None = None) -> dict:
@@ -130,6 +184,12 @@ def build_operation_payload(payload: dict, existing: Operation | None = None) ->
     except ValidationError as exc:
         errors.update(exc.errors)
         keys = []
+
+    try:
+        loan_ids = _parse_loan_ids(payload.get("loan_ids"))
+    except ValidationError as exc:
+        errors.update(exc.errors)
+        loan_ids = []
 
     try:
         operation_date = parse_date(
@@ -150,8 +210,11 @@ def build_operation_payload(payload: dict, existing: Operation | None = None) ->
     )
 
     documents: list = []
+    loans: list[Loan] = []
     if client is not None and "documents" not in errors:
         documents = _load_documents(keys, client.id, errors, existing)
+    if client is not None and "loan_ids" not in errors:
+        loans = _load_loans(loan_ids, client.id, errors, existing)
 
     if errors:
         raise ValidationError(errors)
@@ -163,18 +226,22 @@ def build_operation_payload(payload: dict, existing: Operation | None = None) ->
         "notes": clean_text(payload.get("notes"), 2000),
         "status": status or OperationStatus.OPEN,
         "documents": documents,
+        "loans": loans,
     }
 
 
 def create_operation(payload: dict, user) -> Operation:
     data = build_operation_payload(payload)
     documents = data.pop("documents")
+    loans = data.pop("loans")
     operation = Operation(code=f"TMP-{uuid4().hex[:10]}", created_by_id=user.id, **data)
     db.session.add(operation)
     db.session.flush()
     operation.code = f"OPR-{operation.id:05d}"
     for document in documents:
         _set_operation_link(document, operation, user.id)
+    for loan in loans:
+        _set_loan_link(loan, operation, user.id)
     db.session.flush()
     log_action(
         AuditAction.CREATE,
@@ -184,6 +251,7 @@ def create_operation(payload: dict, user) -> Operation:
         changes={
             "client_id": operation.client_id,
             "documents": [document.code for document in documents],
+            "loans": [loan.code for loan in loans],
             "totals": operation.totals(),
         },
     )
@@ -194,14 +262,21 @@ def create_operation(payload: dict, user) -> Operation:
 def update_operation(operation: Operation, payload: dict, user) -> Operation:
     data = build_operation_payload(payload, existing=operation)
     documents = data.pop("documents")
+    loans = data.pop("loans")
     before = operation.to_dict(include_items=False)
     wanted_ids = {document.id for document in documents}
+    wanted_loan_ids = {loan.id for loan in loans}
 
     for document in list(operation.active_documents()):
         if document.id not in wanted_ids:
             _set_operation_link(document, None, user.id)
+    for loan in list(operation.active_loans()):
+        if loan.id not in wanted_loan_ids:
+            _set_loan_link(loan, None, user.id)
     for document in documents:
         _set_operation_link(document, operation, user.id)
+    for loan in loans:
+        _set_loan_link(loan, operation, user.id)
 
     for field, value in data.items():
         setattr(operation, field, value)
@@ -244,15 +319,21 @@ def delete_operation(operation: Operation, user) -> None:
     if user.role != Role.ADMIN:
         raise PermissionError("Apenas administradores podem excluir operações.")
     documents = list(operation.active_documents())
+    loans = list(operation.active_loans())
     for document in documents:
         _set_operation_link(document, None, user.id)
+    for loan in loans:
+        _set_loan_link(loan, None, user.id)
     operation.soft_delete(user.id)
     log_action(
         AuditAction.DELETE,
         "operation",
         operation.id,
         f"Operação {operation.code} excluída logicamente",
-        changes={"documents": [document.code for document in documents]},
+        changes={
+            "documents": [document.code for document in documents],
+            "loans": [loan.code for loan in loans],
+        },
     )
     db.session.commit()
 
@@ -305,6 +386,29 @@ def available_documents(
     return results
 
 
+def available_loans(
+    client_id: int, search: str | None = None, exclude_operation_id: int | None = None
+) -> list[dict]:
+    query = Loan.query.filter(
+        Loan.is_deleted.is_(False),
+        Loan.client_id == client_id,
+        Loan.status != LoanStatus.CANCELLED,
+    )
+    if exclude_operation_id:
+        query = query.filter(
+            or_(Loan.operation_id.is_(None), Loan.operation_id == exclude_operation_id)
+        )
+    else:
+        query = query.filter(Loan.operation_id.is_(None))
+    if search:
+        like = f"%{search.strip()}%"
+        query = query.filter(or_(Loan.code.ilike(like), Loan.notes.ilike(like)))
+    return [
+        loan.to_dict(include_items=False)
+        for loan in query.order_by(Loan.loan_date.desc(), Loan.id.desc()).limit(300).all()
+    ]
+
+
 def _apply_filters(query, args):
     if args.get("status") in OperationStatus.ALL:
         query = query.filter(Operation.status == args["status"])
@@ -355,10 +459,14 @@ def list_totals(query) -> dict:
     result = {
         "operations": len(ids),
         "documents": 0,
+        "loans": 0,
         "nominal": 0.0,
         "costs": 0.0,
         "net": 0.0,
         "applied_limit": 0.0,
+        "loan_amount": 0.0,
+        "loan_received_amount": 0.0,
+        "loan_profit_amount": 0.0,
     }
     if not ids:
         return result
@@ -372,6 +480,13 @@ def list_totals(query) -> dict:
             result["costs"] += float(document_costs(document))
             result["net"] += float(document.net_amount or 0)
             result["applied_limit"] += float(document.applied_limit or 0)
+    for loan in Loan.query.filter(
+        Loan.is_deleted.is_(False), Loan.operation_id.in_(ids)
+    ).all():
+        result["loans"] += 1
+        result["loan_amount"] += float(loan.loan_amount or 0)
+        result["loan_received_amount"] += float(loan.received_amount or 0)
+        result["loan_profit_amount"] += float(loan.profit_amount or 0)
     return {
         key: (round(value, 2) if isinstance(value, float) else value)
         for key, value in result.items()

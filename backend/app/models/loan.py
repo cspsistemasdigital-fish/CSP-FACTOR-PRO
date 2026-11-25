@@ -36,6 +36,9 @@ class Loan(TimestampMixin, SoftDeleteMixin, db.Model):
     client_id = db.Column(db.Integer, db.ForeignKey("clients.id"), nullable=False, index=True)
     client = db.relationship("Client", back_populates="loans")
 
+    operation_id = db.Column(db.Integer, db.ForeignKey("operations.id"), nullable=True, index=True)
+    operation = db.relationship("Operation", back_populates="loans")
+
     loan_date = db.Column(db.Date, nullable=False, index=True)
     loan_amount = db.Column(db.Numeric(15, 2), nullable=False)
     received_amount = db.Column(db.Numeric(15, 2), nullable=False)
@@ -101,6 +104,7 @@ class Loan(TimestampMixin, SoftDeleteMixin, db.Model):
             "id": self.id,
             "code": self.code,
             "client_id": self.client_id,
+            "operation_id": self.operation_id,
             "client": client_data,
             "loan_date": iso(self.loan_date),
             "loan_amount": money(self.loan_amount),

@@ -251,7 +251,7 @@ def set_client_block(client: Client, blocked: bool, reason, user) -> Client:
 
 
 def overdue_client_ids() -> list[int]:
-    """Client ids with at least one non-deleted pending document past due."""
+    """Client ids with at least one pending document or installment past due."""
     today = date.today()
     ids: set[int] = set()
     for model in (Cheque, Boleto):
@@ -266,6 +266,20 @@ def overdue_client_ids() -> list[int]:
             .all()
         )
         ids.update(row[0] for row in rows)
+    overdue_loans = (
+        db.session.query(Loan.client_id)
+        .join(Installment, Installment.loan_id == Loan.id)
+        .filter(
+            Loan.is_deleted.is_(False),
+            Loan.status != LoanStatus.CANCELLED,
+            Installment.is_deleted.is_(False),
+            Installment.status.in_(DocumentStatus.PENDING),
+            Installment.due_date < today,
+        )
+        .distinct()
+        .all()
+    )
+    ids.update(row[0] for row in overdue_loans)
     if not ids:
         return []
     active_ids = {

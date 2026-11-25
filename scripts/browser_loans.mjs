@@ -26,7 +26,7 @@ const CHROME =
 const DEBUG_PORT = Number(process.env.SMOKE_CDP_PORT || 9500 + Math.floor(Math.random() * 400))
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '..')
-const OUT = path.join(HERE, 'screenshots')
+const OUT = process.env.SMOKE_OUTPUT_DIR || path.join(HERE, 'screenshots')
 const PROFILE = path.join(os.tmpdir(), `factorpro-loans-${process.pid}`)
 
 const ADMIN_EMAIL = 'admin@factorpro.com.br'
@@ -34,6 +34,8 @@ const ADMIN_PASSWORD = 'Admin@12345'
 const NEW_PASSWORD = 'FpLoans@2026'
 const MARKER = 'EMPRESTIMO-UI-TESTE'
 const NOTES = `${MARKER} - verificacao funcional da interface`
+const QUICK_CLIENT_NAME = `${MARKER} Cliente rapido`
+const QUICK_CLIENT_DOCUMENT = '111.444.777-35'
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -111,6 +113,11 @@ async function cleanup(token) {
     if (response.status === 200) removed += 1
   }
   if (removed) console.log(`Limpeza inicial: ${removed} emprestimo(s) de teste removido(s).`)
+
+  const clients = await api(token, 'GET', `/clients?search=${encodeURIComponent(QUICK_CLIENT_NAME)}&per_page=100`)
+  for (const item of clients.data?.items || []) {
+    if (item.name === QUICK_CLIENT_NAME) await api(token, 'DELETE', `/clients/${item.id}`)
+  }
 }
 
 const caretsAudit = `(() => {
@@ -200,18 +207,29 @@ async function main() {
     check('lista de emprestimos renderiza', /emprest/i.test(listText))
 
     await goto(cdp, '/emprestimos/novo', { ready: '!!document.querySelector("#loan-form")' })
+    const profitInputType = await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')
+    check('lucro inicia oculto no formulario', profitInputType === 'password', profitInputType)
+    await evaluate(cdp, '__click(".loan-profit-toggle")')
+    check(
+      'botao de lucro permite revelar o valor',
+      (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')) === 'text',
+    )
+    await evaluate(cdp, '__click(".loan-profit-toggle")')
+    check(
+      'botao de lucro permite ocultar novamente',
+      (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')) === 'password',
+    )
+    check(
+      'formulario oferece cadastro de cliente e geracao de promissoria',
+      /Cadastrar cliente/.test(await evaluate(cdp, 'document.body.innerText')) &&
+        /Gerar promissória/.test(await evaluate(cdp, 'document.body.innerText')),
+    )
     const carets = await evaluate(cdp, caretsAudit)
     check(
       'selects exibem uma unica seta',
       carets.total > 0 && carets.bad.length === 0,
       `${carets.total} select(s) - ${JSON.stringify(carets.bad.slice(0, 2))}`,
     )
-
-    await evaluate(cdp, '__click("#client-select-input")')
-    await waitFor(cdp, 'document.querySelectorAll(\'[role="option"]\').length > 0', 'opcoes de cliente')
-    await evaluate(cdp, '__click(\'[role="option"]\')')
-    await waitFor(cdp, '!!document.querySelector(".loan-limit-box")', 'limite do cliente')
-    check('formulario exibe o limite do cliente', true)
 
     await evaluate(cdp, '__setByLabel("Valor do empréstimo", "3000.00")')
     await evaluate(cdp, '__setByLabel("Valor recebido pelo cliente", "2700.00")')
@@ -228,6 +246,64 @@ async function main() {
       'document.querySelectorAll(".loan-installments-table tbody tr").length',
     )
     check('parcelas geradas a partir da quantidade informada', parcelRows === 3, `${parcelRows} parcelas`)
+
+    await evaluate(
+      cdp,
+      '[...document.querySelectorAll("button")].find((button) => button.textContent.includes("Cadastrar cliente"))?.click()',
+    )
+    await waitFor(cdp, "location.pathname === '/clientes/novo'", 'cadastro rapido de cliente')
+    await waitFor(cdp, '!!document.querySelector("#client-form")', 'formulario de novo cliente')
+    check(
+      'cadastro rapido oferece retorno ao emprestimo',
+      /Voltar para o empréstimo/.test(await evaluate(cdp, 'document.body.innerText')),
+    )
+    await evaluate(cdp, `__setValue("#field-name", "${QUICK_CLIENT_NAME}")`)
+    await evaluate(cdp, `__setByLabel("CPF / CNPJ", "${QUICK_CLIENT_DOCUMENT}")`)
+    await evaluate(cdp, '__setByLabel("Limite operacional", "5000.00")')
+    await evaluate(cdp, '__setByLabel("WhatsApp", "11988881001")')
+    await evaluate(cdp, '__click(\'button[form="client-form"]\')')
+    await waitFor(cdp, "location.pathname === '/emprestimos/novo'", 'retorno apos cadastrar cliente')
+    await waitFor(
+      cdp,
+      `document.querySelector("#client-select-input")?.value === "${QUICK_CLIENT_NAME}"`,
+      'novo cliente selecionado no emprestimo',
+    )
+    await waitFor(cdp, '!!document.querySelector(".loan-limit-box")', 'limite do novo cliente')
+    check(
+      'cadastro rapido retorna ao emprestimo com valores preservados',
+      (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.value'))?.includes('300') &&
+        (await evaluate(cdp, 'document.querySelectorAll(".loan-installments-table tbody tr").length')) === 3,
+    )
+
+    await evaluate(
+      cdp,
+      '[...document.querySelectorAll("button")].find((button) => button.textContent.includes("Gerar promissória"))?.click()',
+    )
+    await waitFor(cdp, "location.pathname === '/emprestimos/promissoria'", 'minuta da promissoria')
+    await waitFor(cdp, '!!document.querySelector(".promissory-sheet")', 'minuta carregada')
+    const promissoryText = await evaluate(cdp, 'document.body.innerText')
+    const promissoryValid =
+      /NOTA PROMISSÓRIA/.test(promissoryText) &&
+      /MINUTA — REQUER REVISÃO JURÍDICA/.test(promissoryText) &&
+      /3/.test(promissoryText)
+    check('minuta de promissoria mostra valores e aviso de revisao', promissoryValid,
+      promissoryValid ? '' : promissoryText.slice(0, 500).replace(/\s+/g, ' '))
+    await evaluate(
+      cdp,
+      '[...document.querySelectorAll("button")].find((button) => button.textContent.includes("Voltar ao formulário"))?.click()',
+    )
+    await waitFor(cdp, "location.pathname === '/emprestimos/novo'", 'retorno ao formulario do emprestimo')
+    await waitFor(cdp, '!!document.querySelector("#loan-form")', 'formulario preservado')
+    await waitFor(
+      cdp,
+      `document.querySelector("#client-select-input")?.value.includes("${QUICK_CLIENT_NAME}") && document.querySelector(".loan-profit-field input")?.value.includes("300")`,
+      'dados do formulario restaurados',
+    )
+    check(
+      'voltar da minuta preserva cliente e valores informados',
+      Boolean(await evaluate(cdp, 'document.querySelector("#client-select-input")?.value')) &&
+        (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.value'))?.includes('300'),
+    )
     await screenshot(cdp, '40-fluxo-emprestimo-formulario')
 
     await evaluate(cdp, '__click(\'button[form="loan-form"]\')')
@@ -344,6 +420,16 @@ async function main() {
     check('emprestimo removido por exclusao logica',
       deleted.status === 200 && afterDelete.status === 404,
       `delete ${deleted.status} / get ${afterDelete.status}`)
+    const quickClientList = await api(
+      token,
+      'GET',
+      `/clients?search=${encodeURIComponent(QUICK_CLIENT_NAME)}&per_page=100`,
+    )
+    const quickClient = quickClientList.data?.items?.find((item) => item.name === QUICK_CLIENT_NAME)
+    const quickClientDeleted = quickClient
+      ? await api(token, 'DELETE', `/clients/${quickClient.id}`)
+      : { status: 404 }
+    check('cliente temporario do fluxo removido', quickClientDeleted.status === 200)
 
     check('sem erros de console', consoleErrors.length === 0, consoleErrors.slice(0, 4).join(' | '))
     const relevantFailures = failedRequests.filter((entry) => !/favicon/i.test(entry))

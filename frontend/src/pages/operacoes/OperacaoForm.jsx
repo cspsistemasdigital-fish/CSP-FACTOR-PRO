@@ -60,6 +60,11 @@ export default function OperacaoForm() {
   const [selected, setSelected] = useState([])
   const [docSearch, setDocSearch] = useState('')
   const [docsLoading, setDocsLoading] = useState(false)
+  const [availableLoans, setAvailableLoans] = useState([])
+  const [selectedLoanIds, setSelectedLoanIds] = useState([])
+  const [loanSearch, setLoanSearch] = useState('')
+  const [loansLoading, setLoansLoading] = useState(false)
+  const [loansError, setLoansError] = useState('')
   const [errors, setErrors] = useState({})
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(editing)
@@ -93,6 +98,25 @@ export default function OperacaoForm() {
     }
   }, [])
 
+  const loadLoans = useCallback(async (clientId, operationId) => {
+    if (!clientId) {
+      setAvailableLoans([])
+      setLoansError('')
+      return
+    }
+    setLoansLoading(true)
+    try {
+      const params = { client_id: clientId }
+      if (operationId) params.operation_id = operationId
+      const { data } = await operationsApi.availableLoans(params)
+      setAvailableLoans(data.items || [])
+    } catch (requestError) {
+      setLoansError(apiError(requestError).message)
+    } finally {
+      setLoansLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     let active = true
     ;(async () => {
@@ -104,8 +128,10 @@ export default function OperacaoForm() {
         const item = data.item
         setForm(toForm(item))
         setSelected((item.items || []).map((doc) => ({ kind: doc.kind, id: doc.id })))
+        setSelectedLoanIds((item.loans || []).map((loan) => loan.id))
         if (item.client_id) loadClient(item.client_id)
         loadDocuments(item.client_id, item.id)
+        loadLoans(item.client_id, item.id)
       } catch (requestError) {
         if (active) setLoadError(apiError(requestError).message)
       } finally {
@@ -115,7 +141,7 @@ export default function OperacaoForm() {
     return () => {
       active = false
     }
-  }, [id, editing, loadClient, loadDocuments])
+  }, [id, editing, loadClient, loadDocuments, loadLoans])
 
   const setField = (field) => (value) => {
     setForm((current) => ({ ...current, [field]: value }))
@@ -130,8 +156,10 @@ export default function OperacaoForm() {
     setForm((current) => ({ ...current, client_id: nextId }))
     setClientInfo(client)
     setSelected([])
+    setSelectedLoanIds([])
     setErrors((current) => ({ ...current, client_id: undefined }))
     loadDocuments(nextId)
+    loadLoans(nextId)
   }
 
   const isSelected = (doc) => selected.some((item) => item.kind === doc.kind && item.id === doc.id)
@@ -145,6 +173,15 @@ export default function OperacaoForm() {
     setMessage('')
   }
 
+  const toggleLoan = (loanId) => {
+    setSelectedLoanIds((current) =>
+      current.includes(loanId)
+        ? current.filter((id) => id !== loanId)
+        : [...current, loanId],
+    )
+    setMessage('')
+  }
+
   const filteredDocs = useMemo(() => {
     const term = docSearch.trim().toLowerCase()
     if (!term) return availableDocs
@@ -152,6 +189,14 @@ export default function OperacaoForm() {
       [doc.code, doc.bank, doc.identifier, doc.number].filter(Boolean).join(' ').toLowerCase().includes(term),
     )
   }, [availableDocs, docSearch])
+
+  const filteredLoans = useMemo(() => {
+    const term = loanSearch.trim().toLowerCase()
+    if (!term) return availableLoans
+    return availableLoans.filter((loan) =>
+      [loan.code, loan.notes, loan.status_label].filter(Boolean).join(' ').toLowerCase().includes(term),
+    )
+  }, [availableLoans, loanSearch])
 
   const selectedDocs = useMemo(
     () => availableDocs.filter((doc) => isSelected(doc)),
@@ -171,6 +216,11 @@ export default function OperacaoForm() {
       { documents: 0, nominal: 0, costs: 0, net: 0, applied_limit: 0 },
     )
   }, [selectedDocs])
+
+  const selectedLoans = useMemo(
+    () => availableLoans.filter((loan) => selectedLoanIds.includes(loan.id)),
+    [availableLoans, selectedLoanIds],
+  )
 
   const validate = () => {
     const nextErrors = {}
@@ -197,6 +247,7 @@ export default function OperacaoForm() {
         status: form.status,
         notes: form.notes || '',
         documents: selected.map((item) => ({ kind: item.kind, id: item.id })),
+        loan_ids: selectedLoanIds,
       }
       const response = editing ? await operationsApi.update(id, payload) : await operationsApi.create(payload)
       toast.success(editing ? 'Operação atualizada' : 'Operação registrada', response.data.message)
@@ -231,7 +282,7 @@ export default function OperacaoForm() {
     <div className="page">
       <PageHeader
         title={editing ? 'Editar operação' : 'Nova operação'}
-        subtitle="Reúna cheques e/ou boletos de um mesmo cliente. O sistema não calcula encargos: os totais vêm dos documentos vinculados."
+        subtitle="Reúna cheques, boletos e empréstimos do mesmo cliente. Os totais de empréstimos permanecem separados dos títulos."
         icon="bi-arrow-left-right"
       >
         <Link to={editing ? `/operacoes/${id}` : '/operacoes'} className="btn btn-light">
@@ -377,6 +428,77 @@ export default function OperacaoForm() {
             )}
           </Panel>
 
+          <Panel
+            title="Empréstimos vinculados"
+            subtitle="Os valores dos empréstimos são exibidos separadamente dos totais de cheques e boletos."
+            icon="bi-cash-coin"
+            actions={<span className="type-chip">{selectedLoanIds.length} selecionado(s)</span>}
+          >
+            {errors.loan_ids && (
+              <div className="alert alert-danger fp-alert" role="alert">
+                <i className="bi bi-exclamation-octagon-fill" /> {errors.loan_ids}
+              </div>
+            )}
+            {loansError ? (
+              <ErrorBlock message={loansError} onRetry={() => loadLoans(form.client_id, editing ? Number(id) : null)} />
+            ) : !form.client_id ? (
+              <EmptyState
+                icon="bi-person-badge"
+                title="Selecione um cliente"
+                message="Os empréstimos disponíveis aparecem depois que você escolher o cliente da operação."
+              />
+            ) : loansLoading ? (
+              <LoadingBlock label="Carregando empréstimos do cliente…" />
+            ) : availableLoans.length === 0 ? (
+              <EmptyState
+                icon="bi-cash-coin"
+                title="Nenhum empréstimo disponível"
+                message="Este cliente não possui empréstimos livres e ativos para vincular."
+              />
+            ) : (
+              <>
+                <div className="filter-search doc-picker-search">
+                  <i className="bi bi-search" />
+                  <input
+                    type="search"
+                    className="form-control fp-input"
+                    placeholder="Filtrar por código ou observação…"
+                    value={loanSearch}
+                    onChange={(event) => setLoanSearch(event.target.value)}
+                    aria-label="Filtrar empréstimos disponíveis"
+                  />
+                </div>
+                <ul className="doc-picker">
+                  {filteredLoans.map((loan) => {
+                    const checked = selectedLoanIds.includes(loan.id)
+                    return (
+                      <li key={loan.id}>
+                        <label className={`doc-picker-item ${checked ? 'selected' : ''}`}>
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            checked={checked}
+                            onChange={() => toggleLoan(loan.id)}
+                          />
+                          <span className="doc-picker-body">
+                            <span className="doc-code"><i className="bi bi-cash-coin" /> {loan.code}</span>
+                            <span className="cell-sub">
+                              Empréstimo · {formatDate(loan.loan_date)} · {loan.status_label}
+                            </span>
+                          </span>
+                          <span className="doc-picker-values">
+                            <span>Emprestado<strong>{formatBRL(loan.loan_amount)}</strong></span>
+                            <span>Recebido pelo cliente<strong>{formatBRL(loan.received_amount)}</strong></span>
+                          </span>
+                        </label>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </>
+            )}
+          </Panel>
+
           <Panel title="Observações" icon="bi-journal-text">
             <Field
               label="Observações internas"
@@ -393,7 +515,7 @@ export default function OperacaoForm() {
         </div>
 
         <aside className="form-side">
-          <Panel title="Resumo da operação" subtitle="Derivado dos documentos selecionados." icon="bi-calculator">
+          <Panel title="Resumo da operação" subtitle="Documentos e empréstimos são totalizados separadamente." icon="bi-calculator">
             <dl className="side-summary">
               <div>
                 <dt>Documentos</dt>
@@ -414,6 +536,22 @@ export default function OperacaoForm() {
               <div>
                 <dt>Limite aplicado</dt>
                 <dd>{formatBRL(derived.applied_limit)}</dd>
+              </div>
+              <div>
+                <dt>Empréstimos</dt>
+                <dd>{formatNumber(selectedLoans.length)}</dd>
+              </div>
+              <div>
+                <dt>Valor emprestado</dt>
+                <dd>{formatBRL(selectedLoans.reduce((sum, loan) => sum + Number(loan.loan_amount || 0), 0))}</dd>
+              </div>
+              <div>
+                <dt>Recebido pelo cliente</dt>
+                <dd>{formatBRL(selectedLoans.reduce((sum, loan) => sum + Number(loan.received_amount || 0), 0))}</dd>
+              </div>
+              <div>
+                <dt>Lucro informado</dt>
+                <dd>{formatBRL(selectedLoans.reduce((sum, loan) => sum + Number(loan.profit_amount || 0), 0))}</dd>
               </div>
             </dl>
           </Panel>
@@ -446,8 +584,8 @@ export default function OperacaoForm() {
             <div>
               <strong>Totais nunca são recalculados</strong>
               <p>
-                O {appName} não aplica taxas, juros ou descontos. Os valores da operação são a soma exata dos
-                valores informados em cada documento vinculado.
+                O {appName} não aplica taxas, juros ou descontos. Os títulos e empréstimos mantêm seus valores
+                informados e são totalizados em grupos separados.
               </p>
             </div>
           </div>

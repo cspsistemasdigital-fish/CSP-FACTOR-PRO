@@ -191,7 +191,7 @@ export default function ClientDetail() {
           <i className="bi bi-exclamation-triangle-fill" />
           <div>
             <strong>Inadimplência detectada.</strong>{' '}
-            {overdue.overdue_documents} título(s) vencido(s), totalizando{' '}
+            {overdue.overdue_documents} item(ns) vencido(s), totalizando{' '}
             {formatBRL(overdue.overdue_amount)}.{' '}
             {clientBlocked
               ? `Bloqueio ativo: ${clientBlockReason || 'motivo não informado'}.`
@@ -227,7 +227,7 @@ export default function ClientDetail() {
           value={formatBRL(summary.overdue_amount)}
           icon="bi-exclamation-triangle"
           tone="danger"
-          hint={`${summary.overdue_documents || 0} documento(s) vencido(s)`}
+          hint={`${summary.overdue_documents || 0} item(ns) vencido(s)`}
         />
       </div>
 

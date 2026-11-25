@@ -4,13 +4,13 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Etapa 8 + integração e ajustes de navegação/homepage/Agenda concluídos**. Além das entregas anteriores, a homepage pública direciona ao login e a Agenda compartilhada oferece visões mensal, semanal e diária, com CRUD auditado. Verificação desta entrega: 158 pytest + build + 112 smoke + 37 fluxos + 23 fluxo de empréstimos.
+Última atualização: **Ajustes pós-Etapa 8 concluídos**. Operações aceita empréstimos, inadimplência inclui parcelas vencidas, Relatório Geral abre no mês atual e foram adicionados lembretes revisáveis, alternância de tema na homepage, cadastro contextual de cliente e minuta de promissória. Migração `2a9c6d1e4f80` aplicada no banco local. Verificação: 161 pytest + build + 119 smoke + 37 fluxos + 31 fluxo de empréstimos.
 
 ---
 
 ## 1. Visão geral
 
-Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas; a homepage e a Agenda compartilhada foram autorizadas e adicionadas como melhorias posteriores.
+Sistema profissional de gestão de factoring. As **oito etapas** do escopo estão concluídas; a homepage, a Agenda compartilhada e os ajustes pós-Etapa 8 foram autorizados e adicionados como melhorias posteriores.
 
 | Etapa | Escopo                                                                                                                                                                     | Situação     |
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
@@ -87,7 +87,7 @@ FACTOR PRO/
 │   │   ├── models/            ← user, client, cheque, boleto, operation, receipt, loan, installment, agenda_event, document, document_attachment, audit, setting, reset_token, report_filter, base
 │   │   ├── services/          ← regras de negócio: clients, documents, operations, receipts, reports, report_filters, dashboard, audit, email, loans, loans_report, branding, backup, list_exports
 │   │   └── utils/             ← validators, responses, security (throttling), files
-│   ├── migrations/versions/   ← migrações até a7c4e1b9d2f3_document_attachments.py + 1f4b8c2d9a30_shared_agenda_events.py
+│   ├── migrations/versions/   ← migrações até a7c4e1b9d2f3_document_attachments.py + 1f4b8c2d9a30_shared_agenda_events.py + 2a9c6d1e4f80_link_loans_to_operations.py
 │   ├── tests/                 ← pytest (inclui agenda, auth, clientes, documentos, operações, relatórios, empréstimos, backup, fotos e exportações)
 │   ├── instance/              ← factorpro.db + uploads/ + backups/ (NÃO versionar)
 │   ├── requirements.txt  wsgi.py  .flaskenv  .env.example
@@ -243,16 +243,16 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `clients`               | code (`CLI-0001`), name, person_type (PF/PJ), document (normalizado), contatos/endereço, registered_at, operational_limit, status (ATIVO/INATIVO)                                                                                                |
 | `cheques`               | code (`CHQ-00001`), number, bank, agency, account, identifier, client*id, issuer_document/name, nominal_amount, discount_amount, interest_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, attachment*\* |
 | `boletos`               | code (`BOL-00001`), identifier, barcode, bank, client*id, beneficiary_document/name, original_amount, discount_amount, other_expenses, **net_amount**, applied_limit, issue/due/operation_date, status, **operation_id**, attachment*\*          |
-| `operations`            | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — totais **derivados** dos documentos vinculados                                                                                                      |
+| `operations`            | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — cheques/boletos e empréstimos vinculados; totais derivados por grupo                                                                                                               |
 | `receipts`              | code (`REC-00001`), document*kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment*\* — baixa **manual** e auditada                                                                                              |
 | `document_attachments`  | document*kind (`CHEQUE`/`BOLETO`/`RECEIPT`), document_id, path, name, size, content_type — **várias fotos** por documento, com soft delete; coluna legada `attachment*\*` preservada                                                             |
-| `loans`                 | code (`EMP-00001`), client_id, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete**                                                      |
+| `loans`                 | code (`EMP-00001`), client_id, **operation_id** nullable, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete**                                                      |
 | `installments`          | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição                                                                                                    |
 | `audit_logs`            | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at                                                                                                                                               |
 | `settings`              | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`)                     |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at                                                                                                                                                                                                         |
 | `report_filters`        | user_id, name, filters (JSON canônico), timestamps + **soft delete** — preferência **pessoal** do usuário (máx. 20 ativos)                                                                                                                       |
-| `agenda_events`         | title, start_at, end_at, location, description, color + timestamps/auditoria e **soft delete** — compromissos **compartilhados** entre usuários                                                                                                     |
+| `agenda_events`         | title, start_at, end_at, location, description, color + timestamps/auditoria e **soft delete** — compromissos **compartilhados** entre usuários                                                                                                  |
 
 ### Enums
 
@@ -288,17 +288,17 @@ Dashboard autenticado em `/dashboard`.
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **auth**          | `POST /login` `POST /refresh` `POST /logout` `GET /me` `POST /change-password` `POST /forgot-password` `POST /reset-password`                                                                                                                                                                                                                 |
 | **users** (ADMIN) | `GET/POST /` `PUT /<id>` `POST /<id>/reset-password` `GET /audit-logs` (filtros: entity, action, user_id, search, date_from, date_to)                                                                                                                                                                                                         |
-| **clients**       | `GET /` (search, status, blocked, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `PATCH /<id>/block` (ADMIN/OPERATOR, motivo obrigatório) `DELETE /<id>` (ADMIN)                                                                                                                                         |
+| **clients**       | `GET /` (search, status, blocked, overdue, page, per_page) `GET /options` `GET /<id>` `GET /<id>/history` `POST /` `PUT /<id>` `PATCH /<id>/block` (ADMIN/OPERATOR, motivo obrigatório) `DELETE /<id>` (ADMIN)                                                                                                                                    |
 | **cheques**       | `GET /` `GET /banks` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR)                                                                                                  |
 | **boletos**       | idem cheques                                                                                                                                                                                                                                                                                                                                  |
-| **operations**    | `GET /` `GET /available-documents?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN)                                                                                                                                                                                                                    |
+| **operations**    | `GET /` `GET /available-documents?client_id=` `GET /available-loans?client_id=` `GET /<id>` `POST /` `PUT /<id>` `PATCH /<id>/status` `DELETE /<id>` (ADMIN)                                                                                                                                                                                   |
 | **receipts**      | `GET /` `GET /open-documents` `GET /<id>` `GET /<id>/recibo` `POST /` `PUT /<id>` `DELETE /<id>` (estorno, ADMIN) + `POST/GET/DELETE /<id>/attachment` + `GET/POST /<id>/photos`, `GET/DELETE /<id>/photos/<attachment_id>` (upload/remoção: ADMIN/OPERATOR)                                                                                  |
 | **loans**         | `GET /` (search, status, client_id, date_from/to, sort, order) `GET /<id>` `GET /<id>/duplicata` `POST /` `PUT /<id>` `PATCH /<id>/status` `PATCH /<id>/installments/<id>/status` `DELETE /<id>` (ADMIN) · `GET /report/summary` `GET /report/export/pdf` `GET /report/export/xlsx` `GET /report/whatsapp?client_id=` `POST /report/email`    |
 | **reports**       | `GET /summary` `GET /whatsapp?client_id=` `GET /export/pdf` `GET /export/xlsx` (filtros: date_from, date_to, client_id, kind=CHEQUE\|BOLETO\|EMPRESTIMO, status, loan_status, overdue, search) · `GET /filters` `POST /filters` `DELETE /filters/<id>` (filtros salvos do próprio usuário)                                                    |
 | **list exports**  | `GET /export/<resource>/xlsx` · `GET /export/resources` — resource: `clients`, `cheques`, `boletos`, `operations`, `receipts`, `loans` (todos os autenticados) e `users`, `audit` (ADMIN); mesmos filtros da listagem, sem paginação                                                                                                          |
 | **dashboard**     | `GET /summary` (filtros: date_from, date_to, client_id)                                                                                                                                                                                                                                                                                       |
-| **alerts**        | `GET /alerts` (autenticado) — clientes inadimplentes, total vencido e títulos em atraso; apenas informativo                                                                                                                                                                                                                                   |
-| **agenda**        | `GET /?start=AAAA-MM-DD&end=AAAA-MM-DD` (todos os autenticados) · `POST /` e `PUT /<id>` (ADMIN/OPERATOR) · `DELETE /<id>` (ADMIN, exclusão lógica); todos os eventos são compartilhados e auditados                                                                                                                                        |
+| **alerts**        | `GET /alerts` (autenticado) — clientes inadimplentes, títulos e parcelas de empréstimo vencidos e total em atraso; apenas informativo                                                                                                                                                                                                           |
+| **agenda**        | `GET /?start=AAAA-MM-DD&end=AAAA-MM-DD` (todos os autenticados) · `POST /` e `PUT /<id>` (ADMIN/OPERATOR) · `DELETE /<id>` (ADMIN, exclusão lógica); todos os eventos são compartilhados e auditados                                                                                                                                          |
 | **settings**      | `GET /company` (todos) `PUT /company` (ADMIN) · `POST/DELETE /company/logo` (ADMIN) · **backup**: `GET /backup` (todos) `PUT /backup` `POST /backup/run` `GET /backup/<name>/download` `DELETE /backup/<name>` (ADMIN) · **público e somente leitura**: `GET /brand` `GET /brand/logo` `GET /brand/favicon` `GET /brand/manifest.webmanifest` |
 
 ### Convenções de payload
@@ -314,8 +314,9 @@ status, notes`.
 beneficiary_name, original_amount, discount_amount, other_expenses, net_amount,
 applied_limit, issue_date, due_date, operation_date, status, notes`.
 - Chaves de operação: `client_id, operation_date, description, status, notes,
-documents: [{kind: CHEQUE|BOLETO, id}]`. Só aceita documentos do **mesmo cliente**,
-  não excluídos, não cancelados e ainda sem outra operação.
+documents: [{kind: CHEQUE|BOLETO, id}], loan_ids: [id]`. Só aceita documentos e
+  empréstimos ativos do **mesmo cliente**, não excluídos, não cancelados e ainda sem
+  outra operação. Os totais de empréstimos são separados dos totais de títulos.
 - Chaves de recebimento: `document_kind, document_id, receipt_date, amount, notes`.
   A baixa é **manual**; o valor é gravado exatamente como informado (aviso se exceder
   o saldo). Ao atingir o líquido, o título vira `LIQUIDADO`; o estorno reverte.
@@ -406,8 +407,8 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
 | Salvar/remover **os próprios** filtros de relatório                                                |  ✅   |    ✅    |   ✅   |
 | Administração (usuários + auditoria)                                                               |  ✅   |    ❌    |   ❌   |
 | Configurações da empresa e **identidade visual** (nome/logo do app) — editar                       |  ✅   |    ❌    |   ❌   |
-| Criar/editar compromissos na Agenda compartilhada                                                   |  ✅   |    ✅    |   ❌   |
-| Excluir compromissos da Agenda (lógica + auditoria)                                                  |  ✅   |    ❌    |   ❌   |
+| Criar/editar compromissos na Agenda compartilhada                                                  |  ✅   |    ✅    |   ❌   |
+| Excluir compromissos da Agenda (lógica + auditoria)                                                |  ✅   |    ❌    |   ❌   |
 
 ### Regras de proteção
 
@@ -437,7 +438,9 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   aparece em PDFs, XLSX, recibos e duplicatas — nunca um "FACTOR PRO" fixo.
 - **Alerta de inadimplência**: `GlobalAlerts` consulta `/api/alerts` ao abrir a área
   autenticada, apresenta banner dispensável e um toast por sessão; o link filtra
-  clientes inadimplentes. A decisão de bloquear segue manual, com motivo e auditoria.
+  clientes com títulos ou parcelas de empréstimo vencidos. Em `/clientes?overdue=1`,
+  WhatsApp abre texto revisável e e-mail abre rascunho; ambos exigem confirmação manual.
+  A decisão de bloquear segue manual, com motivo e auditoria.
 - **Contraste WCAG AA** garantido por tokens de texto dedicados: `--fp-green-text`,
   `--fp-petroleum-text`, `--fp-danger-text`, `--fp-warning-text` e `--tone-text`
   (por tom de card/toast). Manter ao adicionar novas cores de texto. Os avisos de
@@ -449,7 +452,8 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
 - **Homepage e navegação**: `/` é a homepage pública institucional, com CTA para
   `/login`; a área autenticada inicia em `/dashboard`. No menu, Visão geral contém
-  Dashboard e Agenda; Cadastros segue Clientes, Empréstimos, Cheques, Boletos.
+  Dashboard e Agenda; há atalho de tema claro/escuro na homepage e Cadastros segue
+  Clientes, Empréstimos, Cheques, Boletos.
 - **Agenda** (`/agenda`): eventos compartilhados, visualizações mês/semana/dia,
   horário, local, descrição e cor; ADMIN/OPERATOR criam e editam, ADMIN exclui.
   A tabela `agenda_events` usa exclusão lógica e auditoria; estilos em `styles/agenda.css`.
@@ -458,7 +462,8 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   período, tipo (**Cheques, Boletos, Empréstimos** — `kind`) e **um único filtro
   “Situação”** (`COMBINED_STATUS_OPTIONS`) que combina situações de título e de
   empréstimo em `doc:<status>` / `loan:<status>`; a API continua recebendo `status` e
-  `loan_status` separados. 6 abas (Visão geral, Clientes e limites, Títulos,
+  `loan_status` separados. Ao abrir sem filtros explícitos, o período inicial é o mês
+  atual até hoje. 6 abas (Visão geral, Clientes e limites, Títulos,
   **Empréstimos**, Operações, Recebimentos), paginação local de 25 linhas, exportação
   por **blob autenticado** e modal de WhatsApp por cliente. A aba Empréstimos traz
   cards, gráfico/sumário por situação, tabela de empréstimos e de parcelas (clicáveis,
@@ -467,12 +472,23 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   “Filtros salvos na sua conta”. Tabelas usam `.report-table` dentro de `.fp-table-wrap`.
 - **Empréstimos** (`/emprestimos`): formulário com busca automática do cliente
   (`ClientSelect`), valores informados (emprestado/recebido/lucro), parcelas geradas
-  como **sugestão editável** (quantidade, 1º vencimento e periodicidade) e aviso de
-  limite sem bloqueio. Estilos em `styles/emprestimos.css`. A **duplicata**
+  como **sugestão editável** (quantidade, 1º vencimento e periodicidade), lucro oculto
+  por padrão com controle para mostrar/ocultar, atalho de cadastro rápido do cliente
+  com retorno preservando o formulário e aviso de limite sem bloqueio. A minuta de
+  promissória usa os dados informados, permite impressão/PDF e fica claramente
+  identificada como não homologada e sujeita a revisão jurídica. Estilos em
+  `styles/emprestimos.css`. A **duplicata**
   (`/emprestimos/:id/duplicata`) é somente visão de impressão — não grava nada.
   O relatório (`/emprestimos/relatorio`) usa as mesmas convenções de filtros,
   gráficos ApexCharts, exportações por blob autenticado, WhatsApp (texto editável) e
   formulário de e-mail com os filtros atuais.
+- **Operações com empréstimos**: cada operação pode vincular documentos e empréstimos
+  ativos do mesmo cliente; cada empréstimo pertence a no máximo uma operação. Os
+  valores de empréstimos ficam em totais separados dos cheques/boletos. A migração
+  `2a9c6d1e4f80_link_loans_to_operations.py` cria o vínculo opcional em `loans`.
+- **Inadimplência e lembretes**: o filtro `overdue=1` considera títulos e parcelas de
+  empréstimos vencidos. O botão global direciona à lista filtrada; WhatsApp abre texto
+  revisável e e-mail abre rascunho, sempre com confirmação manual e sem envio automático.
 - **Code-splitting**: `App.jsx` carrega as páginas com `React.lazy` + `Suspense`
   (fallback `BootScreen`); layout, guardas e tema permanecem no bundle inicial.
   `vite.config.js` separa `react-vendor` e `charts-vendor` (ApexCharts só é baixado
@@ -513,25 +529,27 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 
 | Suíte                     | Comando                                               | Resultado atual                               |
 | ------------------------- | ----------------------------------------------------- | --------------------------------------------- |
-| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **158 passed**                                |
-| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **112/112**                                   |
+| Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **161 passed**                                |
+| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **119/119**                                   |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
-| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **23/23**                                     |
+| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **31/31**                                     |
 | Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
 além das telas de operações, recebimentos, **Relatório Geral (6 abas, inclusive
-Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório) e
-a checagem de seta única dos selects**, a homepage pública e a Agenda (mês/semana/dia).
+Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório),
+lucro oculto, alternância de tema, acesso ao cadastro rápido e minuta de promissória**,
+a checagem de seta única dos selects, a homepage pública e a Agenda (mês/semana/dia).
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ
 duplicado (422), cheque com divergência, boleto coerente, exclusão bloqueada, mudança de
 status, exclusão lógica, **auditoria conferida via API**, relatório consolidado,
 exportações PDF/planilha, registro `EXPORT` na auditoria, **filtro de relatório salvo**
 (criação, listagem na interface, aplicação e remoção).
-O fluxo de empréstimos cobre: parcelas geradas/editáveis, exposição e aviso de limite,
-duplicata para impressão, relatório com gráficos/cards e exportações PDF/XLSX — com
-limpeza automática do empréstimo `EMPRESTIMO-UI-TESTE` e restauração do administrador.
+O fluxo de empréstimos cobre: parcelas geradas/editáveis, cadastro rápido e retorno ao
+formulário, lucro oculto, minuta de promissória e preservação do rascunho, exposição e
+aviso de limite, duplicata para impressão, relatório com gráficos/cards e exportações
+PDF/XLSX — com limpeza automática dos dados marcados `EMPRESTIMO-UI-TESTE`.
 Os testes de backend incluem e-mail de recuperação (conteúdo, envio, falha de SMTP),
 throttling com Redis (janela deslizante, fallback), exigência de `MAIL_SERVER` em
 produção, CRUD/limite/isolamento dos filtros salvos por usuário, o módulo de
@@ -757,6 +775,23 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Integração**: atualização das etapas 6–8 do GitHub conciliada com as alterações
   locais de branding, alertas, acessibilidade e identidade visual.
 
+### Ajustes pós-Etapa 8 ✅
+
+- **Operações** agora permite selecionar empréstimos disponíveis do cliente, exibir
+  vínculos no detalhe e manter os totais de empréstimos separados dos títulos. Nova
+  migração `2a9c6d1e4f80_link_loans_to_operations.py`, aplicada no banco local após
+  criar backup SQLite.
+- **Inadimplência** inclui parcelas vencidas de empréstimos; o atalho “Ver clientes”
+  aplica o filtro de atraso e os lembretes abrem mensagem de WhatsApp ou rascunho de
+  e-mail para revisão e confirmação manual.
+- **Relatório Geral** inicia com o primeiro dia do mês atual até hoje. A homepage
+  oferece alternância claro/escuro respeitando a preferência persistida do usuário.
+- **Formulário de empréstimo** oculta o lucro por padrão, oferece cadastro contextual
+  de cliente com retorno e preservação do rascunho, além de uma minuta imprimível de
+  promissória. A minuta não é apresentada como homologada e recomenda revisão jurídica.
+- **Validação desta entrega**: 161 testes backend, build, smoke 119/119, fluxos 37/37 e
+  empréstimos 31/31, estes três últimos executados contra base descartável isolada.
+
 ### Pendências conhecidas / observações
 
 - O envio real de e-mail **não foi testado contra um provedor SMTP externo** (sem
@@ -782,8 +817,9 @@ cspsistemasdigital-fish`).
 - A implantação em PostgreSQL/Alembic foi validada apenas no SQLite de desenvolvimento;
   rodar `flask db upgrade` no banco de produção antes do primeiro acesso
   (inclui `269e70536ab9_loans_and_installments.py` e
-  `a7c4e1b9d2f3_document_attachments.py`). A Etapa 7 não criou migração: `app_name` e
-  logo são chaves da tabela `settings` já existente.
+  `a7c4e1b9d2f3_document_attachments.py`, `1f4b8c2d9a30_shared_agenda_events.py` e
+  `2a9c6d1e4f80_link_loans_to_operations.py`). A Etapa 7 não criou migração: `app_name`
+  e logo são chaves da tabela `settings` já existente.
 - Branding: o logo enviado vira favicon e ícone “any” do manifest; os ícones fixos
   `192/512` e `maskable` permanecem os do tema para garantir a instalação do PWA.
   Não há auditoria dedicada para troca de logo (o upload/remoção registra `UPDATE` em

@@ -54,7 +54,7 @@ export default function ClientBlockButton({ clientId, blocked, reason, overdue, 
   if (!blocked && !canBlock) return null
 
   const summary = overdueCount
-    ? `${overdueCount} título(s) vencido(s), totalizando ${formatBRL(overdue.overdue_amount)}.`
+    ? `${overdueCount} item(ns) vencido(s), totalizando ${formatBRL(overdue.overdue_amount)}.`
     : ''
 
   return (

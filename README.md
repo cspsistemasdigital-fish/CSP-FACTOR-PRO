@@ -22,7 +22,8 @@ personalizável** — nome e logo do aplicativo em todas as exportações (Etapa
 **Excel nas listagens, backup diário, atendente virtual por texto/voz, situação única
 no Relatório Geral e múltiplas fotos** em cheques/boletos/recebimentos (Etapa 8).
 Também inclui a homepage pública, a Agenda compartilhada (visões mensal, semanal e
-diária) e a reorganização de navegação solicitadas.
+diária), a reorganização de navegação e os ajustes recentes em Operações, inadimplência,
+Relatório Geral e cadastro/impressão de empréstimos.
 
 ---
 
@@ -117,9 +118,31 @@ no próprio dispositivo.
   de página.
 - **Duplicata** em `/emprestimos/:id/duplicata`: documento para impressão com dados
   do cliente e da empresa, sem criar registro novo.
+- O lucro começa oculto no formulário, com controle para mostrar/ocultar. O cadastro
+  contextual de cliente retorna ao empréstimo mantendo os valores digitados.
+- **Minuta de promissória**: usa cliente, valor emprestado e parcelas para gerar folha
+  imprimível com local e assinatura. É uma minuta operacional, não um modelo homologado;
+  confirme os requisitos com assessoria jurídica antes de utilizar.
 - API: `/api/loans` (CRUD, status e parcelas), `/api/loans/report/summary`,
   `/api/loans/report/export/pdf|xlsx`, `/api/loans/report/whatsapp`,
   `/api/loans/report/email` e `/api/loans/<id>/duplicata`.
+
+---
+
+## Operações, inadimplência e homepage
+
+- **Operações** pode vincular cheques, boletos e empréstimos ativos do mesmo cliente.
+  Os valores dos empréstimos são exibidos em grupo separado dos totais de títulos; um
+  empréstimo só pode pertencer a uma operação.
+- A lista de clientes aceita `overdue=1` e considera títulos e parcelas de empréstimo
+  vencidos. O atalho global de inadimplência abre a lista filtrada. WhatsApp prepara
+  uma mensagem e e-mail abre um rascunho para revisão: nenhum lembrete é enviado sem
+  confirmação manual.
+- O **Relatório Geral** abre por padrão com o mês atual até hoje. A homepage tem
+  controle para alternar entre tema claro e escuro, respeitando a preferência salva.
+- Para atualizar banco existente, execute `cd backend; .\.venv\Scripts\flask.exe db upgrade`.
+  A migração `2a9c6d1e4f80_link_loans_to_operations.py` adiciona o vínculo de empréstimos
+  às operações.
 
 ---
 
@@ -133,7 +156,7 @@ no próprio dispositivo.
 - API: `GET /api/agenda?start=AAAA-MM-DD&end=AAAA-MM-DD`, `POST /api/agenda`,
   `PUT /api/agenda/<id>` e `DELETE /api/agenda/<id>`.
 - A migração `1f4b8c2d9a30_shared_agenda_events.py` cria a tabela `agenda_events`.
-  Após atualizar o código, aplique-a com `cd backend; .\.venv\Scripts\flask.exe db upgrade`.
+  Aplique migrações pendentes com `cd backend; .\.venv\Scripts\flask.exe db upgrade`.
 
 ---
 
@@ -233,10 +256,10 @@ no próprio dispositivo.
 ## Testes
 
 ```powershell
-# Backend — 141 testes (inclui backup, fotos e exportação das listagens)
+# Backend — 161 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
-# Interface — smoke + acessibilidade (101), fluxos (37) e empréstimos (23)
+# Interface — smoke + acessibilidade (119), fluxos (37) e empréstimos (31)
 # Requer o backend no ar em http://127.0.0.1:5000 e o Chrome instalado.
 node scripts/browser_smoke.mjs
 node scripts/browser_flows.mjs
@@ -246,8 +269,12 @@ node scripts/browser_loans.mjs
 node scripts/verify_all.mjs
 ```
 
-Os scripts de interface são auto-limpantes e restauram o estado de primeiro acesso do
-administrador ao final. Screenshots em `scripts/screenshots/`.
+Execute os scripts de interface somente contra uma base local descartável/de teste:
+eles criam e removem dados e redefinem a senha do administrador de teste. Use
+`SMOKE_BASE` se o servidor isolado não estiver em `http://127.0.0.1:5000` e defina
+`DATABASE_URL` no terminal dos scripts com o mesmo banco usado pelo servidor, pois o
+fluxo de recuperação da senha administrativa chama a CLI do Flask.
+`SMOKE_OUTPUT_DIR` permite salvar screenshots fora de `scripts/screenshots/`.
 
 ---
 

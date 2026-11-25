@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { alertsApi, clientsApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useAuth } from '../../context/AuthContext'
@@ -83,6 +83,7 @@ export default function ClientForm() {
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const { canWrite } = useAuth()
   const [form, setForm] = useState(EMPTY_FORM)
@@ -157,7 +158,26 @@ export default function ClientForm() {
         editing ? 'Cliente atualizado' : 'Cliente cadastrado',
         response.data.message,
       )
-      navigate(`/clientes/${response.data.item.id}`, { replace: true })
+      const returnTo = location.state?.returnTo
+      if (!editing && returnTo) {
+        const [pathname, search = ''] = returnTo.split('?')
+        const params = new URLSearchParams(search)
+        params.set('cliente', String(response.data.item.id))
+        const loanDraft = location.state?.loanDraft
+        navigate(`${pathname}?${params.toString()}`, {
+          replace: true,
+          state: loanDraft
+            ? {
+                loanDraft: {
+                  ...loanDraft,
+                  form: { ...loanDraft.form, client_id: response.data.item.id },
+                },
+              }
+            : undefined,
+        })
+      } else {
+        navigate(`/clientes/${response.data.item.id}`, { replace: true })
+      }
     } catch (requestError) {
       const parsed = apiError(requestError)
       setErrors(parsed.errors || {})
@@ -198,6 +218,15 @@ export default function ClientForm() {
         }
         icon="bi-person-plus"
       >
+        {location.state?.returnTo && (
+          <Link
+            to={location.state.returnTo}
+            state={{ loanDraft: location.state.loanDraft }}
+            className="btn btn-outline-primary"
+          >
+            <i className="bi bi-arrow-left-circle" /> Voltar para o empréstimo
+          </Link>
+        )}
         <Link to={editing ? `/clientes/${id}` : '/clientes'} className="btn btn-light">
           <i className="bi bi-arrow-left" /> Cancelar
         </Link>
@@ -237,7 +266,7 @@ export default function ClientForm() {
           <i className="bi bi-exclamation-triangle-fill" />
           <div>
             <strong>Cliente com pendências em atraso.</strong>{' '}
-            {overdue.overdue_documents} título(s) vencido(s), totalizando{' '}
+            {overdue.overdue_documents} item(ns) vencido(s), totalizando{' '}
             {formatBRL(overdue.overdue_amount)}.{' '}
             {clientBlocked
               ? `Bloqueio ativo — ${clientBlockReason || 'motivo não informado'}. Novos lançamentos são recusados.`

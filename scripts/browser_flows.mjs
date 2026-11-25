@@ -31,7 +31,7 @@ const CHROME =
 const DEBUG_PORT = Number(process.env.SMOKE_CDP_PORT || 9300 + Math.floor(Math.random() * 500))
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '..')
-const OUT = path.join(HERE, 'screenshots')
+const OUT = process.env.SMOKE_OUTPUT_DIR || path.join(HERE, 'screenshots')
 const PROFILE = path.join(os.tmpdir(), `factorpro-flows-${process.pid}`)
 
 const ADMIN_EMAIL = 'admin@factorpro.com.br'

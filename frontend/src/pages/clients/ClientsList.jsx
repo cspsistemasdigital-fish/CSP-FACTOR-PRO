@@ -11,7 +11,8 @@ import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
 import EmptyState from '../../components/ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
-import { formatBRL, formatDocument, formatNumber, formatPhone } from '../../utils/format'
+import { useBrand } from '../../context/BrandContext'
+import { formatBRL, formatDocument, formatNumber, formatPhone, onlyDigits } from '../../utils/format'
 
 const SORT_OPTIONS = [
   { value: 'name', label: 'Nome' },
@@ -21,14 +22,73 @@ const SORT_OPTIONS = [
   { value: 'created_at', label: 'Criado em' },
 ]
 
+function reminderMessage(client, appName) {
+  const count = client.summary?.overdue_documents || 0
+  const amount = formatBRL(client.summary?.overdue_amount || 0)
+  const overdueLabel = count === 1 ? '1 item vencido' : `${count} itens vencidos`
+  return [
+    `Olá, ${client.name}.`,
+    '',
+    `Identificamos ${overdueLabel} em seu cadastro, totalizando ${amount}.`,
+    'Pedimos, por gentileza, que verifique. Caso o pagamento já tenha sido realizado, desconsidere esta mensagem e nos avise.',
+    '',
+    appName,
+  ].join('\n')
+}
+
+function ReminderActions({ client, appName, compact = false }) {
+  const message = reminderMessage(client, appName)
+  const digits = onlyDigits(client.whatsapp || client.phone || '')
+  const whatsappNumber = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits
+  const whatsappUrl = whatsappNumber
+    ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`
+    : null
+  const emailUrl = client.email
+    ? `mailto:${encodeURIComponent(client.email)}?subject=${encodeURIComponent('Lembrete de pagamento')}&body=${encodeURIComponent(message)}`
+    : null
+
+  if (!whatsappUrl && !emailUrl) {
+    return <span className="cell-sub">Sem contato cadastrado</span>
+  }
+
+  return (
+    <div className="row-actions">
+      {whatsappUrl && (
+        <a
+          className={compact ? 'icon-btn sm' : 'btn btn-sm btn-outline-success'}
+          href={whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Preparar lembrete no WhatsApp"
+          aria-label={`Preparar lembrete no WhatsApp para ${client.name}`}
+        >
+          <i className="bi bi-whatsapp" />{compact ? null : ' WhatsApp'}
+        </a>
+      )}
+      {emailUrl && (
+        <a
+          className={compact ? 'icon-btn sm' : 'btn btn-sm btn-outline-primary'}
+          href={emailUrl}
+          title="Preparar lembrete por e-mail"
+          aria-label={`Preparar lembrete por e-mail para ${client.name}`}
+        >
+          <i className="bi bi-envelope" />{compact ? null : ' E-mail'}
+        </a>
+      )}
+    </div>
+  )
+}
+
 export default function ClientsList() {
   const { canWrite } = useAuth()
+  const { appName } = useBrand()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const page = Number(params.get('page') || 1)
   const search = params.get('search') || ''
   const status = params.get('status') || ''
   const blocked = params.get('blocked') || ''
+  const overdue = params.get('overdue') || ''
   const sort = params.get('sort') || 'name'
   const order = params.get('order') || 'asc'
 
@@ -71,6 +131,7 @@ export default function ClientsList() {
       if (search) requestParams.search = search
       if (status) requestParams.status = status
       if (blocked) requestParams.blocked = blocked
+      if (overdue) requestParams.overdue = overdue
       const { data } = await clientsApi.list(requestParams)
       setItems(data.items || [])
       setMeta(data.meta)
@@ -81,7 +142,7 @@ export default function ClientsList() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, status, blocked, sort, order])
+  }, [page, search, status, blocked, overdue, sort, order])
 
   useEffect(() => {
     load()
@@ -92,11 +153,13 @@ export default function ClientsList() {
     setParams(new URLSearchParams())
   }
 
-  const hasFilters = Boolean(search || status || blocked)
+  const hasFilters = Boolean(search || status || blocked || overdue)
 
   const exportParams = { sort, order }
   if (search) exportParams.search = search
   if (status) exportParams.status = status
+  if (blocked) exportParams.blocked = blocked
+  if (overdue) exportParams.overdue = overdue
 
   return (
     <div className="page">
@@ -180,7 +243,7 @@ export default function ClientsList() {
             </select>
           </label>
           <label className="filter-select">
-            <span>Inadimplência</span>
+            <span>Bloqueio manual</span>
             <select
               className="form-select fp-input"
               value={blocked}
@@ -189,6 +252,17 @@ export default function ClientsList() {
               <option value="">Todos</option>
               <option value="1">Somente bloqueados</option>
               <option value="0">Sem bloqueio</option>
+            </select>
+          </label>
+          <label className="filter-select">
+            <span>Atrasos</span>
+            <select
+              className="form-select fp-input"
+              value={overdue}
+              onChange={(event) => setParam('overdue', event.target.value)}
+            >
+              <option value="">Todos</option>
+              <option value="1">Somente com itens vencidos</option>
             </select>
           </label>
           <label className="filter-select">
@@ -263,6 +337,7 @@ export default function ClientsList() {
                   <th className="text-end">Em aberto</th>
                   <th style={{ minWidth: 190 }}>Limite disponível</th>
                   <th>Status</th>
+                  {overdue && <th>Enviar lembrete</th>}
                   <th aria-label="Ações" />
                 </tr>
               </thead>
@@ -332,6 +407,11 @@ export default function ClientsList() {
                       <td>
                         <StatusBadge status={client.status} size="sm" />
                       </td>
+                      {overdue && (
+                        <td onClick={(event) => event.stopPropagation()}>
+                          <ReminderActions client={client} appName={appName} />
+                        </td>
+                      )}
                       <td className="text-end">
                         <div className="row-actions">
                           <button
@@ -399,6 +479,7 @@ export default function ClientsList() {
                     </div>
                   )}
                   <div className="client-card-actions">
+                    {overdue && <ReminderActions client={client} appName={appName} compact />}
                     <button
                       type="button"
                       className="btn btn-sm btn-outline-secondary"

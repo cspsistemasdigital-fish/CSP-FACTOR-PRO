@@ -24,9 +24,11 @@ export default function GlobalAlerts() {
         setAlerts(data)
         if (data.client_count > 0 && !startupToastShown) {
           startupToastShown = true
+          const count = data.overdue_count ?? data.document_count
+          const countLabel = count === 1 ? 'item vencido' : 'itens vencidos'
           toast.warning(
             'Clientes inadimplentes',
-            `${data.client_count} cliente(s), ${data.document_count} título(s) vencido(s) · ${formatBRL(data.total_amount)}`,
+            `${data.client_count} cliente(s), ${count} ${countLabel} · ${formatBRL(data.total_amount)}`,
           )
         }
       })
@@ -43,6 +45,9 @@ export default function GlobalAlerts() {
     setDismissed(true)
   }
 
+  const overdueCount = alerts?.overdue_count ?? alerts?.document_count ?? 0
+  const overdueLabel = overdueCount === 1 ? 'item vencido' : 'itens vencidos'
+
   if (!alerts || alerts.client_count === 0 || dismissed) return null
 
   return (
@@ -55,11 +60,11 @@ export default function GlobalAlerts() {
           {alerts.client_count} cliente(s) inadimplente(s) · {formatBRL(alerts.total_amount)} em atraso
         </strong>
         <span>
-          {alerts.document_count} título(s) vencido(s). O sistema apenas informa: a decisão de
+          {overdueCount} {overdueLabel}. O sistema apenas informa: a decisão de
           bloquear novos lançamentos é sua.
         </span>
       </div>
-      <Link className="fp-global-alerts-link" to="/clientes?blocked=1">
+      <Link className="fp-global-alerts-link" to="/clientes?overdue=1">
         Ver clientes <i className="bi bi-arrow-right" />
       </Link>
       <button

@@ -378,6 +378,58 @@
   border-top: 1px dashed #b9c8c1;
 }
 
+.loan-profit-wrap { position: relative; min-width: 0; }
+.loan-profit-wrap .loan-profit-field .fp-control { padding-right: 46px; }
+.loan-profit-toggle {
+  position: absolute;
+  top: 31px;
+  right: 6px;
+  z-index: 2;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 6px;
+  color: var(--fp-text-muted);
+  background: transparent;
+}
+.loan-profit-toggle:hover { color: var(--fp-green-text); background: var(--fp-surface-soft); }
+
+.promissory-sheet { max-width: 850px; }
+.promissory-draft-stamp {
+  margin-left: auto;
+  padding: 6px 12px;
+  border: 1px solid #a34a3d;
+  border-radius: 4px;
+  color: #a34a3d;
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+.promissory-heading { margin: 30px 0 24px; text-align: center; }
+.promissory-heading > span,
+.promissory-heading > strong { display: block; color: #875837; font-size: .7rem; letter-spacing: .12em; }
+.promissory-heading h1 { margin: 8px 0; color: #173d32; font-family: Georgia, "Times New Roman", serif; font-size: 1.8rem; }
+.promissory-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.promissory-parties > div { display: flex; min-width: 0; flex-direction: column; gap: 5px; padding: 14px; border: 1px solid #d7e2dd; border-radius: 7px; }
+.promissory-parties span,
+.promissory-values span { color: #5a6b64; font-size: .7rem; font-weight: 700; }
+.promissory-parties strong { color: #173d32; }
+.promissory-parties small { color: #5a6b64; overflow-wrap: anywhere; }
+.promissory-promise p { line-height: 1.8; }
+.promissory-values { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 18px 0; }
+.promissory-values > div { display: flex; flex-direction: column; gap: 5px; padding: 12px; background: #f3f5f1; }
+.promissory-values strong { color: #173d32; font-size: 1.05rem; }
+.promissory-installments h2 { margin: 20px 0 10px; font-size: 1rem; color: #173d32; }
+.promissory-disclaimer { margin: 24px 0; padding: 12px; border-left: 3px solid #a34a3d; background: #fff7f4; font-size: .8rem; line-height: 1.6; }
+.promissory-signature { margin-top: 50px; text-align: center; }
+.promissory-signature > p { margin-bottom: 65px; text-align: left; }
+.promissory-signature-line { width: min(460px, 85%); margin: 0 auto 8px; border-top: 1px solid #52645c; }
+.promissory-signature strong,
+.promissory-signature span { display: block; }
+.promissory-signature span { margin-top: 4px; color: #5a6b64; font-size: .78rem; }
+
 @media (max-width: 767px) {
   .loan-limit-box,
   .loan-installment-config,
@@ -386,6 +438,9 @@
   .loan-print-sign {
     grid-template-columns: 1fr;
   }
+
+  .promissory-parties,
+  .promissory-values { grid-template-columns: 1fr; }
 
   .loan-print-metrics {
     grid-template-columns: repeat(2, 1fr) !important;

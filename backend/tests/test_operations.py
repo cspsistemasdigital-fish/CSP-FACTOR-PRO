@@ -255,3 +255,84 @@ def test_operation_requires_documents_list(client, admin_headers, make_client):
     # An empty list is allowed (a batch may be created before adding documents).
     assert response.status_code == 201
     assert response.get_json()["item"]["documents_count"] == 0
+
+
+def test_operation_links_loans_and_keeps_financial_totals_separate(
+    client, admin_headers, make_client
+):
+    customer = make_client()
+    loan_response = client.post(
+        "/api/loans",
+        json={
+            "client_id": customer["id"],
+            "loan_date": date.today().isoformat(),
+            "loan_amount": "12000.00",
+            "received_amount": "10000.00",
+            "profit_amount": "2000.00",
+            "installments_config": {
+                "quantity": 2,
+                "first_due_date": (date.today() + timedelta(days=30)).isoformat(),
+                "periodicity": "MENSAL",
+            },
+        },
+        headers=admin_headers,
+    )
+    loan = loan_response.get_json()["item"]
+
+    created = client.post(
+        "/api/operations",
+        json=operation_payload(customer["id"], [], loan_ids=[loan["id"]]),
+        headers=admin_headers,
+    )
+    assert created.status_code == 201, created.get_json()
+    operation = created.get_json()["item"]
+    assert operation["documents_count"] == 0
+    assert operation["loans_count"] == 1
+    assert operation["totals"]["nominal"] == 0
+    assert operation["totals"]["loan_amount"] == 12000
+    assert operation["totals"]["loan_received_amount"] == 10000
+    assert operation["totals"]["loan_profit_amount"] == 2000
+    assert operation["loans"][0]["id"] == loan["id"]
+    assert client.get(f"/api/loans/{loan['id']}", headers=admin_headers).get_json()["item"]["operation_id"] == operation["id"]
+
+    duplicate = client.post(
+        "/api/operations",
+        json=operation_payload(customer["id"], [], loan_ids=[loan["id"]]),
+        headers=admin_headers,
+    )
+    assert duplicate.status_code == 422
+    assert "loan_ids" in duplicate.get_json()["errors"]
+
+    deleted = client.delete(f"/api/operations/{operation['id']}", headers=admin_headers)
+    assert deleted.status_code == 200
+    released = client.get(f"/api/loans/{loan['id']}", headers=admin_headers).get_json()["item"]
+    assert released["operation_id"] is None
+
+
+def test_operation_rejects_loan_belonging_to_another_client(
+    client, admin_headers, make_client
+):
+    first = make_client(name="Cliente do empréstimo")
+    second = make_client(name="Outro cliente", document="529.982.247-25")
+    loan = client.post(
+        "/api/loans",
+        json={
+            "client_id": first["id"],
+            "loan_date": date.today().isoformat(),
+            "loan_amount": "1000.00",
+            "received_amount": "1000.00",
+            "installments_config": {
+                "quantity": 1,
+                "first_due_date": (date.today() + timedelta(days=30)).isoformat(),
+                "periodicity": "MENSAL",
+            },
+        },
+        headers=admin_headers,
+    ).get_json()["item"]
+    response = client.post(
+        "/api/operations",
+        json=operation_payload(second["id"], [], loan_ids=[loan["id"]]),
+        headers=admin_headers,
+    )
+    assert response.status_code == 422
+    assert "loan_ids" in response.get_json()["errors"]

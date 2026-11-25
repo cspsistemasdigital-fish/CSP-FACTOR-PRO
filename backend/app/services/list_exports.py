@@ -11,6 +11,7 @@ from datetime import date, datetime, time, timezone
 from io import BytesIO
 
 from flask import current_app
+from sqlalchemy import false
 
 from ..extensions import db
 from ..models import (
@@ -27,7 +28,7 @@ from ..models import (
 )
 from ..utils.validators import clean_text
 from .branding import brand_logo_path, company_display_name, export_slug
-from .clients import serialize_clients
+from .clients import overdue_client_ids, serialize_clients
 from .documents import _apply_filters as _apply_document_filters
 from .loans import _apply_filters as _apply_loan_filters
 from .operations import _apply_filters as _apply_operation_filters
@@ -66,6 +67,13 @@ def _client_query(args):
         query = query.filter(db.or_(*conditions))
     if args.get("status") in ClientStatus.ALL:
         query = query.filter(Client.status == args["status"])
+    if args.get("blocked") in ("1", "true", "True"):
+        query = query.filter(Client.is_blocked.is_(True))
+    elif args.get("blocked") in ("0", "false", "False"):
+        query = query.filter(Client.is_blocked.is_(False))
+    if args.get("overdue") in ("1", "true", "True"):
+        ids = overdue_client_ids()
+        query = query.filter(Client.id.in_(ids) if ids else false())
     return query.order_by(Client.name.asc(), Client.id.asc())
 
 
@@ -176,19 +184,22 @@ def build_rows(resource: str, args) -> dict | None:
         headers = [
             "Código", "Cliente", "Data da operação", "Descrição", "Situação",
             "Qtd. documentos", "Valor nominal", "Custos informados", "Valor líquido",
-            "Criado em", "Observações",
+            "Qtd. empréstimos", "Valor emprestado", "Valor recebido pelo cliente",
+            "Lucro informado", "Criado em", "Observações",
         ]
         rows = [
             [
                 item["code"], (item.get("client") or {}).get("name") or "",
                 item.get("operation_date") or "", item.get("description") or "",
                 item["status_label"], item["totals"]["documents"], item["totals"]["nominal"],
-                item["totals"]["costs"], item["totals"]["net"], item.get("created_at") or "",
+                item["totals"]["costs"], item["totals"]["net"], item["totals"]["loans"],
+                item["totals"]["loan_amount"], item["totals"]["loan_received_amount"],
+                item["totals"]["loan_profit_amount"], item.get("created_at") or "",
                 item.get("notes") or "",
             ]
             for item in items
         ]
-        return {"headers": headers, "rows": rows, "money_columns": (7, 8, 9), "percent_columns": ()}
+        return {"headers": headers, "rows": rows, "money_columns": (7, 8, 9, 11, 12, 13), "percent_columns": ()}
 
     if resource == "receipts":
         query = _apply_receipt_filters(Receipt.query.filter(Receipt.is_deleted.is_(False)), args)

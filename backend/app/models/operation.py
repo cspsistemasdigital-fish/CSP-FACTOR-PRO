@@ -54,11 +54,15 @@ class Operation(TimestampMixin, SoftDeleteMixin, db.Model):
 
     cheques = db.relationship("Cheque", back_populates="operation", lazy="selectin")
     boletos = db.relationship("Boleto", back_populates="operation", lazy="selectin")
+    loans = db.relationship("Loan", back_populates="operation", lazy="selectin")
 
     # --- Derived values -----------------------------------------------------
     def active_documents(self) -> list:
         """Documents still visible (soft-deleted ones never count)."""
         return [d for d in (*self.cheques, *self.boletos) if not d.is_deleted]
+
+    def active_loans(self) -> list:
+        return [loan for loan in self.loans if not loan.is_deleted]
 
     def totals(self) -> dict:
         nominal = Decimal("0.00")
@@ -70,12 +74,17 @@ class Operation(TimestampMixin, SoftDeleteMixin, db.Model):
             costs += document_costs(document)
             net += Decimal(document.net_amount or 0)
             applied_limit += Decimal(document.applied_limit or 0)
+        loans = self.active_loans()
         return {
             "documents": len(self.active_documents()),
             "nominal": money(nominal),
             "costs": money(costs),
             "net": money(net),
             "applied_limit": money(applied_limit),
+            "loans": len(loans),
+            "loan_amount": money(sum((Decimal(loan.loan_amount or 0) for loan in loans), Decimal("0.00"))),
+            "loan_received_amount": money(sum((Decimal(loan.received_amount or 0) for loan in loans), Decimal("0.00"))),
+            "loan_profit_amount": money(sum((Decimal(loan.profit_amount or 0) for loan in loans), Decimal("0.00"))),
         }
 
     @property
@@ -99,6 +108,7 @@ class Operation(TimestampMixin, SoftDeleteMixin, db.Model):
             "status_label": self.status_label,
             "notes": self.notes,
             "documents_count": len(documents),
+            "loans_count": len(self.active_loans()),
             "totals": self.totals(),
             "created_at": iso(self.created_at),
             "updated_at": iso(self.updated_at),
@@ -109,6 +119,10 @@ class Operation(TimestampMixin, SoftDeleteMixin, db.Model):
             data["items"] = [document.to_dict() for document in sorted(
                 documents, key=lambda d: (d.due_date or d.operation_date, d.id)
             )]
+            data["loans"] = [
+                loan.to_dict(include_items=False)
+                for loan in sorted(self.active_loans(), key=lambda value: (value.loan_date, value.id))
+            ]
         return data
 
     def __repr__(self) -> str:  # pragma: no cover

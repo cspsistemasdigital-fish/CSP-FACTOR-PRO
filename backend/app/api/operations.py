@@ -8,6 +8,7 @@ from ..models import Operation, Role
 from ..services.operations import (
     _apply_filters,
     available_documents,
+    available_loans,
     change_operation_status,
     create_operation,
     delete_operation,
@@ -59,6 +60,18 @@ def list_available_documents():
     exclude_id = int(exclude) if exclude and exclude.isdigit() else None
     items = available_documents(client_id, request.args.get("search"), exclude_id)
     return jsonify({"items": items})
+
+
+@bp.get("/available-loans")
+@auth_required()
+def list_available_loans():
+    try:
+        client_id = parse_int(request.args.get("client_id"), "client_id", required=True, minimum=1)
+    except ValidationError as exc:
+        return jsonify({"message": exc.message, "errors": exc.errors}), 422
+    exclude = request.args.get("operation_id")
+    exclude_id = int(exclude) if exclude and exclude.isdigit() else None
+    return jsonify({"items": available_loans(client_id, request.args.get("search"), exclude_id)})
 
 
 @bp.get("/<int:operation_id>")

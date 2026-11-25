@@ -18,7 +18,7 @@ const CHROME =
 const DEBUG_PORT = Number(process.env.SMOKE_CDP_PORT || 9300 + Math.floor(Math.random() * 500))
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(HERE, '..')
-const OUT = path.join(HERE, 'screenshots')
+const OUT = process.env.SMOKE_OUTPUT_DIR || path.join(HERE, 'screenshots')
 const PROFILE = path.join(os.tmpdir(), `factorpro-smoke-${process.pid}`)
 
 const ADMIN_EMAIL = 'admin@factorpro.com.br'
@@ -345,6 +345,20 @@ async function main() {
       /Mais clareza/.test(await evaluate(cdp, 'document.body.innerText')) &&
         (await evaluate(cdp, 'document.querySelector(".home-nav-cta")?.getAttribute("href")')) === '/login',
     )
+    const initialHomeTheme = await evaluate(cdp, 'document.documentElement.getAttribute("data-theme")')
+    await evaluate(cdp, '__click(".home-theme-toggle")')
+    await waitFor(
+      cdp,
+      `document.documentElement.getAttribute("data-theme") !== ${JSON.stringify(initialHomeTheme)}`,
+      'alternância do tema na homepage',
+    )
+    check('homepage alterna entre os temas claro e escuro', true)
+    await evaluate(cdp, '__click(".home-theme-toggle")')
+    await waitFor(
+      cdp,
+      `document.documentElement.getAttribute("data-theme") === ${JSON.stringify(initialHomeTheme)}`,
+      'restauração do tema inicial',
+    )
     await audit(cdp, 'homepage')
 
     /* ---------------------------------------------------------------- login */
@@ -480,6 +494,11 @@ async function main() {
     await shot(cdp, '16-operacoes')
     await shotFull(cdp, '16b-operacoes-full')
     await audit(cdp, 'operacoes')
+    await goto(cdp, '/operacoes/novo', { ready: '!!document.querySelector("#operacao-form")' })
+    check(
+      'formulario de operacoes permite incluir emprestimos',
+      /Empréstimos vinculados/.test(await evaluate(cdp, 'document.body.innerText')),
+    )
 
     await goto(cdp, '/recebimentos', { ready: '!!document.querySelector(".filter-bar")' })
     check(
@@ -497,6 +516,21 @@ async function main() {
     check(
       'relatorios mostra resumo derivado',
       /títulos no período/i.test(await evaluate(cdp, 'document.querySelector(".page").innerText')),
+    )
+    const reportRange = await evaluate(cdp, `(() => {
+      const inputs = [...document.querySelectorAll('.filter-date input[type="date"]')];
+      return inputs.map((input) => input.value);
+    })()`)
+    const currentMonth = await evaluate(cdp, `(() => {
+      const now = new Date();
+      return \`\${now.getFullYear()}-\${String(now.getMonth() + 1).padStart(2, '0')}\`;
+    })()`)
+    check(
+      'relatorio geral abre filtrado pelo mes atual',
+      reportRange.length === 2 &&
+        reportRange[0] === `${currentMonth}-01` &&
+        reportRange[1].startsWith(`${currentMonth}-`),
+      reportRange.join(' a '),
     )
     await shot(cdp, '18-relatorios')
     await shotFull(cdp, '18b-relatorios-full')
@@ -528,6 +562,23 @@ async function main() {
     await audit(cdp, 'emprestimos')
 
     await goto(cdp, '/emprestimos/novo', { ready: '!!document.querySelector("#loan-form")' })
+    const profitInputType = await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')
+    check('lucro do emprestimo inicia oculto', profitInputType === 'password', profitInputType)
+    await evaluate(cdp, '__click(".loan-profit-toggle")')
+    check(
+      'botao de lucro alterna mostrar e ocultar',
+      (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')) === 'text',
+    )
+    await evaluate(cdp, '__click(".loan-profit-toggle")')
+    check(
+      'lucro volta a ficar oculto apos alternar',
+      (await evaluate(cdp, 'document.querySelector(".loan-profit-field input")?.type')) === 'password',
+    )
+    check(
+      'formulario oferece cadastro de cliente e minuta',
+      /Cadastrar cliente/.test(await evaluate(cdp, 'document.body.innerText')) &&
+        /Gerar promissória/.test(await evaluate(cdp, 'document.body.innerText')),
+    )
     await shot(cdp, '18d-emprestimo-novo')
     await audit(cdp, 'emprestimo-novo')
 

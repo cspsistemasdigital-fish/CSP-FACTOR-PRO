@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from flask import Blueprint, g, jsonify, request
+from sqlalchemy import false
 
 from ..extensions import db
 from ..models import Client, ClientStatus, Role
@@ -9,6 +10,7 @@ from ..services.clients import (
     client_history,
     create_client,
     delete_client,
+    overdue_client_ids,
     serialize_client,
     serialize_clients,
     set_client_block,
@@ -55,6 +57,10 @@ def list_clients():
         query = query.filter(Client.is_blocked.is_(True))
     elif blocked_filter in ("0", "false", "False"):
         query = query.filter(Client.is_blocked.is_(False))
+
+    if request.args.get("overdue") in ("1", "true", "True"):
+        ids = overdue_client_ids()
+        query = query.filter(Client.id.in_(ids) if ids else false())
 
     sort = request.args.get("sort", "name")
     sort_map = {

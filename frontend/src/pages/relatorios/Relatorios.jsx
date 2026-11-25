@@ -45,6 +45,11 @@ const EMPTY_FILTERS = {
   search: '',
 }
 
+function currentMonthFilters() {
+  const range = presetRange('mes_atual')
+  return { ...EMPTY_FILTERS, date_from: range.from, date_to: range.to }
+}
+
 const KIND_OPTIONS = [
   { value: '', label: 'Todos (cheques, boletos e empréstimos)' },
   { value: 'CHEQUE', label: 'Cheques' },
@@ -178,9 +183,9 @@ export default function Relatorios() {
   const toast = useToast()
 
   const [tab, setTab] = useState('geral')
-  const [preset, setPreset] = useState('all')
-  const [draft, setDraft] = useState(EMPTY_FILTERS)
-  const [applied, setApplied] = useState(EMPTY_FILTERS)
+  const [preset, setPreset] = useState('mes_atual')
+  const [draft, setDraft] = useState(currentMonthFilters)
+  const [applied, setApplied] = useState(currentMonthFilters)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')

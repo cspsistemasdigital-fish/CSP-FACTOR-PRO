@@ -74,6 +74,7 @@ export const boletosApi = documentApi('/boletos')
 export const operationsApi = {
   list: (params) => api.get('/operations', { params }),
   availableDocuments: (params) => api.get('/operations/available-documents', { params }),
+  availableLoans: (params) => api.get('/operations/available-loans', { params }),
   get: (id) => api.get(`/operations/${id}`),
   create: (payload) => api.post('/operations', payload),
   update: (id, payload) => api.put(`/operations/${id}`, payload),

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { clientsApi, loansApi } from '../../api'
 import { apiError } from '../../api/client'
 import { useToast } from '../../context/ToastContext'
@@ -111,6 +111,7 @@ export default function EmprestimoForm() {
   const { id } = useParams()
   const editing = Boolean(id)
   const navigate = useNavigate()
+  const location = useLocation()
   const toast = useToast()
   const [searchParams] = useSearchParams()
   const preClient = searchParams.get('cliente')
@@ -125,6 +126,17 @@ export default function EmprestimoForm() {
   const [loading, setLoading] = useState(editing)
   const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [showProfit, setShowProfit] = useState(false)
+
+  useEffect(() => {
+    const draft = location.state?.loanDraft
+    if (!draft) return
+    setForm({ ...draft.form, client_id: preClient ? Number(preClient) : draft.form.client_id })
+    setConfig(draft.config)
+    setInstallments(draft.installments)
+    setScheduleTouched(draft.scheduleTouched)
+    setClientInfo(draft.clientInfo || null)
+  }, [location.state, preClient])
 
   useEffect(() => {
     let active = true
@@ -288,6 +300,39 @@ export default function EmprestimoForm() {
     return nextErrors
   }
 
+  const createClient = () => {
+    navigate('/clientes/novo', {
+      state: {
+        returnTo: `${location.pathname}${location.search}`,
+        loanDraft: { form, config, installments, scheduleTouched },
+      },
+    })
+  }
+
+  const generatePromissory = () => {
+    const nextErrors = validate()
+    setErrors(nextErrors)
+    if (Object.keys(nextErrors).length || !clientInfo) {
+      toast.warning('Complete os dados do empréstimo', 'Selecione o cliente e revise os valores e parcelas antes de gerar a minuta.')
+      return
+    }
+    navigate('/emprestimos/promissoria', {
+      state: {
+        promissory: {
+          client: clientInfo,
+          loanAmount: form.loan_amount,
+          loanDate: form.loan_date,
+          installments: installments.map((item, index) => ({
+            number: index + 1,
+            due_date: item.due_date,
+            amount: item.amount,
+          })),
+        },
+        loanDraft: { form, config, installments, scheduleTouched, clientInfo },
+      },
+    })
+  }
+
   const submit = async (event) => {
     event.preventDefault()
     const nextErrors = validate()
@@ -353,6 +398,21 @@ export default function EmprestimoForm() {
         <Link to={editing ? `/emprestimos/${id}` : '/emprestimos'} className="btn btn-light">
           <i className="bi bi-arrow-left" /> Cancelar
         </Link>
+        {!editing && (
+          <button type="button" className="btn btn-outline-secondary" onClick={createClient}>
+            <i className="bi bi-person-plus" /> Cadastrar cliente
+          </button>
+        )}
+        {!editing && (
+          <button
+            type="button"
+            className="btn btn-outline-primary"
+            onClick={generatePromissory}
+            disabled={!clientInfo}
+          >
+            <i className="bi bi-file-earmark-text" /> Gerar promissória
+          </button>
+        )}
         <button type="submit" form="loan-form" className="btn btn-primary" disabled={saving}>
           {saving ? (
             <>
@@ -455,13 +515,27 @@ export default function EmprestimoForm() {
                 hint="Quanto o cliente efetivamente recebe — informado por você."
                 required
               />
-              <CurrencyField
-                label="Lucro de quem empresta"
-                value={form.profit_amount}
-                onChange={setField('profit_amount')}
-                error={errors.profit_amount}
-                hint="Informado manualmente. O sistema nunca calcula juros ou encargos."
-              />
+              <div className="loan-profit-wrap">
+                <CurrencyField
+                  label="Lucro de quem empresta"
+                  value={form.profit_amount}
+                  onChange={setField('profit_amount')}
+                  error={errors.profit_amount}
+                  hint="Informado manualmente. O sistema nunca calcula juros ou encargos."
+                  type={showProfit ? 'text' : 'password'}
+                  className="loan-profit-field"
+                />
+                <button
+                  type="button"
+                  className="loan-profit-toggle"
+                  onClick={() => setShowProfit((current) => !current)}
+                  aria-label={`${showProfit ? 'Ocultar' : 'Mostrar'} lucro informado`}
+                  aria-pressed={showProfit}
+                  title={`${showProfit ? 'Ocultar' : 'Mostrar'} lucro`}
+                >
+                  <i className={`bi ${showProfit ? 'bi-eye-slash' : 'bi-eye'}`} aria-hidden="true" />
+                </button>
+              </div>
               <Field
                 label="Observações"
                 name="notes"
@@ -626,7 +700,7 @@ export default function EmprestimoForm() {
               </span>
               <span>
                 Emprestado {formatBRL(form.loan_amount)} · Recebido {formatBRL(form.received_amount)} ·
-                Lucro {formatBRL(form.profit_amount)}
+                Lucro {showProfit ? formatBRL(form.profit_amount) : '••••••'}
               </span>
               <span className={Math.abs(Number(divergence)) > 0.01 ? 'text-warning' : ''}>
                 Divergência informada: {formatBRL(divergence)}
