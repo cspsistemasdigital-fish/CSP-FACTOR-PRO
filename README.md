@@ -120,9 +120,9 @@ no próprio dispositivo.
   do cliente e da empresa, sem criar registro novo.
 - O lucro começa oculto no formulário, com controle para mostrar/ocultar. O cadastro
   contextual de cliente retorna ao empréstimo mantendo os valores digitados.
-- **Minuta de promissória**: usa cliente, valor emprestado e parcelas para gerar folha
-  imprimível com local e assinatura. É uma minuta operacional, não um modelo homologado;
-  confirme os requisitos com assessoria jurídica antes de utilizar.
+- **Nota promissória**: gera folha A4 de página única, com valor, quantidade de parcelas
+  e data na mesma linha, vencimentos/valores compactos e espaço para local e assinatura.
+  A impressão não inclui cabeçalho, selo ou texto complementar de minuta.
 - API: `/api/loans` (CRUD, status e parcelas), `/api/loans/report/summary`,
   `/api/loans/report/export/pdf|xlsx`, `/api/loans/report/whatsapp`,
   `/api/loans/report/email` e `/api/loans/<id>/duplicata`.
@@ -259,7 +259,7 @@ no próprio dispositivo.
 # Backend — 161 testes
 cd backend; .\.venv\Scripts\python.exe -m pytest -q
 
-# Interface — smoke + acessibilidade (119), fluxos (37) e empréstimos (31)
+# Interface — smoke + acessibilidade (119), fluxos (37) e empréstimos (33)
 # Requer o backend no ar em http://127.0.0.1:5000 e o Chrome instalado.
 node scripts/browser_smoke.mjs
 node scripts/browser_flows.mjs

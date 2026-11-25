@@ -4,7 +4,7 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Ajustes pós-Etapa 8 concluídos**. Operações aceita empréstimos, inadimplência inclui parcelas vencidas, Relatório Geral abre no mês atual e foram adicionados lembretes revisáveis, alternância de tema na homepage, cadastro contextual de cliente e minuta de promissória. Migração `2a9c6d1e4f80` aplicada no banco local. Verificação: 161 pytest + build + 119 smoke + 37 fluxos + 31 fluxo de empréstimos.
+Última atualização: **Ajustes pós-Etapa 8 concluídos**. Operações aceita empréstimos, inadimplência inclui parcelas vencidas, Relatório Geral abre no mês atual e foram adicionados lembretes revisáveis, alternância de tema na homepage, cadastro contextual de cliente e layout compacto de promissória em página única. Migração `2a9c6d1e4f80` aplicada no banco local. Verificação: 161 pytest + build + 119 smoke + 37 fluxos + 33 fluxo de empréstimos.
 
 ---
 
@@ -475,9 +475,10 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   como **sugestão editável** (quantidade, 1º vencimento e periodicidade), lucro oculto
   por padrão com controle para mostrar/ocultar, atalho de cadastro rápido do cliente
   com retorno preservando o formulário e aviso de limite sem bloqueio. A minuta de
-  promissória usa os dados informados, permite impressão/PDF e fica claramente
-  identificada como não homologada e sujeita a revisão jurídica. Estilos em
-  `styles/emprestimos.css`. A **duplicata**
+  promissória usa os dados informados e imprime em uma página A4, com título único,
+  dados principais na mesma linha, parcelas compactas e espaço de assinatura. A folha
+  não inclui cabeçalho, selo ou texto de minuta. Estilos em `styles/emprestimos.css`.
+  A **duplicata**
   (`/emprestimos/:id/duplicata`) é somente visão de impressão — não grava nada.
   O relatório (`/emprestimos/relatorio`) usa as mesmas convenções de filtros,
   gráficos ApexCharts, exportações por blob autenticado, WhatsApp (texto editável) e
@@ -532,7 +533,7 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 | Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **161 passed**                                |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **119/119**                                   |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
-| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **31/31**                                     |
+| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **33/33**                                     |
 | Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
@@ -547,9 +548,10 @@ status, exclusão lógica, **auditoria conferida via API**, relatório consolida
 exportações PDF/planilha, registro `EXPORT` na auditoria, **filtro de relatório salvo**
 (criação, listagem na interface, aplicação e remoção).
 O fluxo de empréstimos cobre: parcelas geradas/editáveis, cadastro rápido e retorno ao
-formulário, lucro oculto, minuta de promissória e preservação do rascunho, exposição e
-aviso de limite, duplicata para impressão, relatório com gráficos/cards e exportações
-PDF/XLSX — com limpeza automática dos dados marcados `EMPRESTIMO-UI-TESTE`.
+formulário, lucro oculto, preservação do rascunho, minuta de promissória com impressão
+PDF comprovada em uma página A4, exposição e aviso de limite, duplicata para impressão,
+relatório com gráficos/cards e exportações PDF/XLSX — com limpeza automática dos dados
+marcados `EMPRESTIMO-UI-TESTE`.
 Os testes de backend incluem e-mail de recuperação (conteúdo, envio, falha de SMTP),
 throttling com Redis (janela deslizante, fallback), exigência de `MAIL_SERVER` em
 produção, CRUD/limite/isolamento dos filtros salvos por usuário, o módulo de
@@ -787,10 +789,10 @@ para uso; a lista abaixo registra o que foi entregue em cada etapa.
 - **Relatório Geral** inicia com o primeiro dia do mês atual até hoje. A homepage
   oferece alternância claro/escuro respeitando a preferência persistida do usuário.
 - **Formulário de empréstimo** oculta o lucro por padrão, oferece cadastro contextual
-  de cliente com retorno e preservação do rascunho, além de uma minuta imprimível de
-  promissória. A minuta não é apresentada como homologada e recomenda revisão jurídica.
+  de cliente com retorno e preservação do rascunho, além de uma promissória para impressão
+  em página única, sem textos complementares de minuta ou conferência.
 - **Validação desta entrega**: 161 testes backend, build, smoke 119/119, fluxos 37/37 e
-  empréstimos 31/31, estes três últimos executados contra base descartável isolada.
+  empréstimos 33/33, estes três últimos executados contra base descartável isolada.
 
 ### Pendências conhecidas / observações
 

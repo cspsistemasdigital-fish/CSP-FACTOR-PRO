@@ -12,7 +12,7 @@ export default function EmprestimoPromissoria() {
   const client = note?.client || {}
 
   useEffect(() => {
-    if (note) document.title = `Minuta de nota promissória — ${appName}`
+    if (note) document.title = `Nota Promissória — ${appName}`
     return () => {
       document.title = `${appName} | Gestão Financeira Inteligente`
     }
@@ -53,19 +53,7 @@ export default function EmprestimoPromissoria() {
       </div>
 
       <article className="print-sheet loan-print-sheet promissory-sheet">
-        <header className="loan-print-company print-section">
-          <div>
-            <strong>{companyName || appName}</strong>
-            <span>Documento preparado a partir dos dados informados no sistema</span>
-          </div>
-          <span className="promissory-draft-stamp">MINUTA</span>
-        </header>
-
-        <div className="promissory-heading">
-          <span>DOCUMENTO PARA CONFERÊNCIA</span>
-          <h1>NOTA PROMISSÓRIA</h1>
-          <strong>MINUTA — REQUER REVISÃO JURÍDICA</strong>
-        </div>
+        <h1 className="promissory-title print-section">NOTA PROMISSÓRIA</h1>
 
         <div className="promissory-parties print-section">
           <div>
@@ -81,14 +69,9 @@ export default function EmprestimoPromissoria() {
         </div>
 
         <section className="promissory-promise print-section">
-          <p>
-            Pela presente minuta, <strong>{client.name}</strong> reconhece os dados abaixo como
-            referência para a obrigação informada no cadastro do empréstimo. O documento definitivo
-            deve ser conferido, completado e validado pelas partes antes de qualquer assinatura.
-          </p>
           <div className="promissory-values">
             <div>
-              <span>Valor emprestado informado</span>
+              <span>Valor do empréstimo</span>
               <strong>{formatBRL(note.loanAmount)}</strong>
             </div>
             <div>
@@ -103,35 +86,22 @@ export default function EmprestimoPromissoria() {
         </section>
 
         <section className="promissory-installments print-section">
-          <h2>Parcelas informadas</h2>
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th>Nº</th>
-                <th>Vencimento</th>
-                <th className="text-end">Valor informado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {note.installments.map((installment) => (
-                <tr key={installment.number}>
-                  <td>{String(installment.number).padStart(2, '0')}</td>
-                  <td>{formatDate(installment.due_date)}</td>
-                  <td className="text-end">{formatBRL(installment.amount)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <h2>Parcelas</h2>
+          <div className="promissory-installment-grid">
+            {note.installments.map((installment) => (
+              <div className="promissory-installment" key={installment.number}>
+                <span className="promissory-installment-number">
+                  {String(installment.number).padStart(2, '0')}
+                </span>
+                <time dateTime={installment.due_date}>{formatDate(installment.due_date)}</time>
+                <strong>{formatBRL(installment.amount)}</strong>
+              </div>
+            ))}
+          </div>
         </section>
 
-        <p className="promissory-disclaimer print-section">
-          Este arquivo é uma minuta operacional, não constitui modelo homologado nem parecer jurídico.
-          Confirme com assessoria jurídica os requisitos legais, valores, vencimentos, praça de pagamento
-          e identificação completa das partes antes de utilizar ou colher assinaturas.
-        </p>
-
         <div className="promissory-signature print-section">
-          <p>Local: __________________________________________ &nbsp; Data: ____ / ____ / ________</p>
+          <p>Local: _________________________________ &nbsp; Data: ____ / ____ / ________</p>
           <div className="promissory-signature-line" />
           <strong>{client.name}</strong>
           <span>Emitente / Devedor · {client.document ? formatDocument(client.document) : 'Documento: __________________'}</span>

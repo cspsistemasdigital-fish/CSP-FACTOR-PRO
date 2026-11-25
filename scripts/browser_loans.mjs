@@ -281,13 +281,32 @@ async function main() {
     )
     await waitFor(cdp, "location.pathname === '/emprestimos/promissoria'", 'minuta da promissoria')
     await waitFor(cdp, '!!document.querySelector(".promissory-sheet")', 'minuta carregada')
-    const promissoryText = await evaluate(cdp, 'document.body.innerText')
+    const promissoryText = (await evaluate(cdp, 'document.body.innerText')).replace(/\s+/g, ' ')
     const promissoryValid =
       /NOTA PROMISSÓRIA/.test(promissoryText) &&
-      /MINUTA — REQUER REVISÃO JURÍDICA/.test(promissoryText) &&
-      /3/.test(promissoryText)
-    check('minuta de promissoria mostra valores e aviso de revisao', promissoryValid,
-      promissoryValid ? '' : promissoryText.slice(0, 500).replace(/\s+/g, ' '))
+      !/DOCUMENTO PARA CONFERÊNCIA|MINUTA|Este arquivo é uma minuta/i.test(promissoryText) &&
+      promissoryText.includes('Valor do empréstimo') &&
+      promissoryText.includes('Quantidade de parcelas') &&
+      promissoryText.includes('Data do empréstimo') &&
+      promissoryText.includes('R$ 3.000,00') &&
+      promissoryText.includes('3')
+    check('nota promissoria exibe titulo e dados sem textos extras', promissoryValid)
+    const metricColumns = await evaluate(
+      cdp,
+      'getComputedStyle(document.querySelector(".promissory-values")).gridTemplateColumns.split(" ").length',
+    )
+    check('valor, parcelas e data ocupam a mesma linha', metricColumns === 3, `${metricColumns} colunas`)
+    const printable = await cdp.send('Page.printToPDF', {
+      printBackground: true,
+      preferCSSPageSize: true,
+    })
+    const printedPages = (
+      Buffer.from(printable.data, 'base64').toString('latin1').match(/\/Type\s*\/Page\b/g) || []
+    ).length
+    check('nota promissoria imprime em uma pagina', printedPages === 1, `${printedPages} pagina(s)`)
+    await cdp.send('Emulation.setEmulatedMedia', { media: 'print' })
+    await screenshot(cdp, '44-nota-promissoria-print')
+    await cdp.send('Emulation.setEmulatedMedia', { media: 'screen' })
     await evaluate(
       cdp,
       '[...document.querySelectorAll("button")].find((button) => button.textContent.includes("Voltar ao formulário"))?.click()',
