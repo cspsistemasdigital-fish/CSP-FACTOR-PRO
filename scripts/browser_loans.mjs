@@ -345,6 +345,28 @@ async function main() {
       `${(loan?.installments || []).length} parcelas`)
     check('relacao consumo-recebido-lucro nao e recalculada',
       Number(loan?.profit_amount) === 300 && Number(loan?.loan_amount) - Number(loan?.received_amount) === 300)
+    await goto(cdp, '/emprestimos', { ready: '!!document.querySelector("#loans-saved-data")' })
+    const loanListControl = 'button[aria-controls="loans-saved-data"]'
+    const loanListInitiallyHidden = await evaluate(
+      cdp,
+      'document.querySelector(\'button[aria-controls="loans-saved-data"]\')?.getAttribute("aria-expanded") === "false" && document.querySelector("#loans-saved-data")?.hidden',
+    )
+    check('lista de emprestimos inicia com os registros ocultos', loanListInitiallyHidden)
+    await evaluate(cdp, `__click('${loanListControl}')`)
+    await waitFor(
+      cdp,
+      'document.querySelector(\'button[aria-controls="loans-saved-data"]\')?.getAttribute("aria-expanded") === "true" && !document.querySelector("#loans-saved-data")?.hidden',
+      'exibir registros de emprestimos',
+    )
+    check('lista de emprestimos permite exibir os registros', true)
+    await evaluate(cdp, `__click('${loanListControl}')`)
+    await waitFor(
+      cdp,
+      'document.querySelector(\'button[aria-controls="loans-saved-data"]\')?.getAttribute("aria-expanded") === "false" && document.querySelector("#loans-saved-data")?.hidden',
+      'ocultar registros de emprestimos',
+    )
+    check('lista de emprestimos permite ocultar os registros', true)
+    await goto(cdp, `/emprestimos/${loanId}`, { ready: '!!document.querySelector(".detail-main")' })
     await screenshot(cdp, '41-fluxo-emprestimo-detalhe')
 
     /* --------------------------------------------- 2. exposicao e duplicata */

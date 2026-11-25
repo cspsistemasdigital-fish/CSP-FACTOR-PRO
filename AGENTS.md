@@ -4,7 +4,7 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Ajustes pós-Etapa 8 concluídos**. Operações aceita empréstimos, inadimplência inclui parcelas vencidas, Relatório Geral abre no mês atual e foram adicionados lembretes revisáveis, alternância de tema na homepage, cadastro contextual de cliente e layout compacto de promissória em página única. Migração `2a9c6d1e4f80` aplicada no banco local. Verificação: 161 pytest + build + 119 smoke + 37 fluxos + 33 fluxo de empréstimos.
+Última atualização: **Listas com dados ocultos por padrão**. Clientes, Cheques, Boletos, Empréstimos, Operações e Recebimentos agora exibem os registros somente após acionar o botão de olho; o controle inclui tabela, cartões mobile e paginação, e volta ao estado oculto ao sair da página. Build OK; smoke verificou os controles em listas populadas e no mobile, mas registrou duas falhas preexistentes fora do escopo (título do login e contraste na Agenda); fluxo de empréstimos 36/36.
 
 ---
 
@@ -450,6 +450,9 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   Ordenador por**. Novos selects devem seguir o mesmo padrão — uma única seta,
   alinhada como os demais campos. O smoke verifica essa checagem.
 - **Listas**: filtros e paginação nos **search params da URL** (compartilhável/voltar).
+  Os registros de Clientes, Cheques, Boletos, Empréstimos, Operações e Recebimentos
+  começam ocultos; o botão de olho acessível mostra/esconde tabela, cartões mobile e
+  paginação. O estado é local à página e não persiste ao sair dela.
 - **Homepage e navegação**: `/` é a homepage pública institucional, com CTA para
   `/login`; a área autenticada inicia em `/dashboard`. No menu, Visão geral contém
   Dashboard e Agenda; há atalho de tema claro/escuro na homepage e Cadastros segue
@@ -531,9 +534,9 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 | Suíte                     | Comando                                               | Resultado atual                               |
 | ------------------------- | ----------------------------------------------------- | --------------------------------------------- |
 | Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **161 passed**                                |
-| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **119/119**                                   |
+| Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **137/139** (2 falhas preexistentes fora do escopo) |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
-| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **33/33**                                     |
+| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **36/36**                                     |
 | Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
@@ -541,6 +544,7 @@ alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de 
 além das telas de operações, recebimentos, **Relatório Geral (6 abas, inclusive
 Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório),
 lucro oculto, alternância de tema, acesso ao cadastro rápido e minuta de promissória**,
+a alternância de dados salvos nas listagens, cartões de clientes revelados no celular,
 a checagem de seta única dos selects, a homepage pública e a Agenda (mês/semana/dia).
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ
 duplicado (422), cheque com divergência, boleto coerente, exclusão bloqueada, mudança de

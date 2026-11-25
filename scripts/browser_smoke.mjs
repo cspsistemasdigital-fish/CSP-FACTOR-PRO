@@ -38,6 +38,55 @@ function check(label, ok, detail = '') {
 
 const goto = (cdp, route, options) => gotoRoute(cdp, BASE, route, options)
 
+async function verifySavedDataVisibility(cdp, label, id) {
+  const selector = `button[aria-controls="${id}"]`
+  await waitFor(
+    cdp,
+    `!!document.querySelector(${JSON.stringify(selector)}) || !!document.querySelector(".fp-empty")`,
+    `${label}: lista carregada`,
+  )
+  const controlExists = await evaluate(cdp, `!!document.querySelector(${JSON.stringify(selector)})`)
+  if (!controlExists) {
+    const emptyState = await evaluate(cdp, '!!document.querySelector(".fp-empty")')
+    check(`${label} sem registros exibe o estado vazio`, emptyState)
+    return
+  }
+
+  const initial = await evaluate(
+    cdp,
+    `(() => {
+      const button = document.querySelector(${JSON.stringify(selector)});
+      const content = document.getElementById(${JSON.stringify(id)});
+      return Boolean(button && content && button.getAttribute('aria-expanded') === 'false' && content.hidden);
+    })()`,
+  )
+  check(`${label} inicia com os dados salvos ocultos`, initial)
+
+  await evaluate(cdp, `__click(${JSON.stringify(selector)})`)
+  await waitFor(
+    cdp,
+    `document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-expanded') === 'true' &&
+      !document.getElementById(${JSON.stringify(id)})?.hidden`,
+    `${label}: exibir dados salvos`,
+  )
+  check(`${label} permite exibir os dados salvos`, true)
+
+  await evaluate(cdp, `__click(${JSON.stringify(selector)})`)
+  await waitFor(
+    cdp,
+    `document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-expanded') === 'false' &&
+      document.getElementById(${JSON.stringify(id)})?.hidden`,
+    `${label}: ocultar dados salvos`,
+  )
+  check(`${label} permite ocultar novamente os dados salvos`, true)
+  await evaluate(cdp, `__click(${JSON.stringify(selector)})`)
+  await waitFor(
+    cdp,
+    `document.querySelector(${JSON.stringify(selector)})?.getAttribute('aria-expanded') === 'true'`,
+    `${label}: reexibir dados salvos`,
+  )
+}
+
 const AUDIT_JS = `(() => {
   function parseColor(value) {
     if (!value || value === 'transparent') return [0, 0, 0, 0];
@@ -430,8 +479,9 @@ async function main() {
 
     /* --------------------------------------------------------------- listas */
     await goto(cdp, '/clientes', {
-      ready: "document.querySelectorAll('tbody tr').length > 0",
+      ready: '!!document.querySelector("#clients-saved-data")',
     })
+    await verifySavedDataVisibility(cdp, 'clientes', 'clients-saved-data')
     const clientRows = await evaluate(cdp, "document.querySelectorAll('tbody tr').length")
     check('lista de clientes renderiza linhas', clientRows >= 3, `${clientRows} linhas`)
     await shot(cdp, '05-clientes-escuro')
@@ -459,7 +509,8 @@ async function main() {
     await shot(cdp, '08-cliente-novo')
     await audit(cdp, 'cliente-novo')
 
-    await goto(cdp, '/cheques', { ready: "document.querySelectorAll('tbody tr').length > 0" })
+    await goto(cdp, '/cheques', { ready: '!!document.querySelector("#cheques-saved-data")' })
+    await verifySavedDataVisibility(cdp, 'cheques', 'cheques-saved-data')
     await shot(cdp, '09-cheques')
     await goto(cdp, `/cheques/${chequeId}`, { ready: '!!document.querySelector(".detail-main")' })
     check(
@@ -477,7 +528,8 @@ async function main() {
     await shotFull(cdp, '12b-cheque-novo-full')
     await audit(cdp, 'cheque-novo')
 
-    await goto(cdp, '/boletos', { ready: "document.querySelectorAll('tbody tr').length > 0" })
+    await goto(cdp, '/boletos', { ready: '!!document.querySelector("#boletos-saved-data")' })
+    await verifySavedDataVisibility(cdp, 'boletos', 'boletos-saved-data')
     await shot(cdp, '13-boletos')
     await goto(cdp, `/boletos/${boletoId}`, { ready: '!!document.querySelector(".detail-main")' })
     await shot(cdp, '14-boleto-detalhe')
@@ -487,6 +539,7 @@ async function main() {
 
     /* ------------------------------------------- modulos das etapas 2 e 3 */
     await goto(cdp, '/operacoes', { ready: '!!document.querySelector(".filter-bar")' })
+    await verifySavedDataVisibility(cdp, 'operações', 'operations-saved-data')
     check(
       'operacoes exibe a tela implementada',
       /operações/i.test(await evaluate(cdp, 'document.querySelector(".page").innerText')),
@@ -501,6 +554,7 @@ async function main() {
     )
 
     await goto(cdp, '/recebimentos', { ready: '!!document.querySelector(".filter-bar")' })
+    await verifySavedDataVisibility(cdp, 'recebimentos', 'receipts-saved-data')
     check(
       'recebimentos exibe a tela implementada',
       /recebimentos/i.test(await evaluate(cdp, 'document.querySelector(".page").innerText')),
@@ -554,6 +608,7 @@ async function main() {
     )
 
     await goto(cdp, '/emprestimos', { ready: '!!document.querySelector(".stats-strip")' })
+    await verifySavedDataVisibility(cdp, 'empréstimos', 'loans-saved-data')
     check(
       'emprestimos exibe a tela implementada',
       /emprest/i.test(await evaluate(cdp, 'document.querySelector(".page").innerText')),
@@ -649,7 +704,15 @@ async function main() {
     await audit(cdp, 'mobile-menu')
     await evaluate(cdp, '__click(".sidebar-backdrop")')
     await sleep(500)
-    await goto(cdp, '/clientes', { ready: "document.querySelectorAll('tbody tr').length > 0" })
+    await goto(cdp, '/clientes', { ready: '!!document.querySelector("#clients-saved-data")' })
+    await verifySavedDataVisibility(cdp, 'clientes no celular', 'clients-saved-data')
+    check(
+      'cartões de clientes aparecem ao revelar dados no celular',
+      await evaluate(
+        cdp,
+        'getComputedStyle(document.querySelector("#clients-saved-data .d-lg-none")).display !== "none"',
+      ),
+    )
     await shot(cdp, '24-mobile-clientes')
     await audit(cdp, 'mobile-clientes')
     await goto(cdp, '/cheques/novo', { ready: '!!document.querySelector("#cheque-form")' })

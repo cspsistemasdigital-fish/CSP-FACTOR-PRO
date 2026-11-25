@@ -7,6 +7,7 @@ import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
 import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
+import DataVisibility from '../../components/ui/DataVisibility'
 import EmptyState from '../../components/ui/EmptyState'
 import StatusBadge from '../../components/ui/StatusBadge'
 import ClientSelect from '../../components/form/ClientSelect'
@@ -295,8 +296,9 @@ export default function EmprestimosList() {
           </EmptyState>
         </div>
       ) : (
-        <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
-          <div className="table-responsive fp-table-wrap d-none d-lg-block">
+        <DataVisibility id="loans-saved-data" label="empréstimos">
+          <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
+            <div className="table-responsive fp-table-wrap d-none d-lg-block">
             <table className="table fp-table align-middle">
               <thead>
                 <tr>
@@ -401,8 +403,9 @@ export default function EmprestimosList() {
             ))}
           </div>
 
-          <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
-        </div>
+            <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
+          </div>
+        </DataVisibility>
       )}
     </div>
   )

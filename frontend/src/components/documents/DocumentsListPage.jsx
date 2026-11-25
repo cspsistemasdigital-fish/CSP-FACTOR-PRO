@@ -6,6 +6,7 @@ import PageHeader from '../../components/ui/PageHeader'
 import SummaryTile from '../../components/ui/SummaryTile'
 import Pagination from '../../components/ui/Pagination'
 import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
+import DataVisibility from '../ui/DataVisibility'
 import DocumentsTable from '../documents/DocumentsTable'
 import EmptyState from '../ui/EmptyState'
 import ClientSelect from '../form/ClientSelect'
@@ -335,10 +336,15 @@ export default function DocumentsListPage({ config }) {
           </EmptyState>
         </div>
       ) : (
-        <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
-          <DocumentsTable items={items} kind={kind} />
-          <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
-        </div>
+        <DataVisibility
+          id={kind === 'CHEQUE' ? 'cheques-saved-data' : 'boletos-saved-data'}
+          label={title.toLowerCase()}
+        >
+          <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
+            <DocumentsTable items={items} kind={kind} />
+            <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
+          </div>
+        </DataVisibility>
       )}
     </div>
   )

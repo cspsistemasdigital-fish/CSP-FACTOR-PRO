@@ -1522,6 +1522,33 @@ small {
    Tables
    -------------------------------------------------------------------------- */
 
+.fp-data-visibility-action {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.fp-data-visibility-button {
+  display: inline-grid;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid var(--fp-border);
+  color: var(--fp-text);
+  background: var(--fp-surface);
+}
+
+.fp-data-visibility-button:hover {
+  border-color: var(--fp-green);
+  color: var(--fp-green-text);
+  background: var(--fp-surface-2);
+}
+
+.fp-data-visibility-button i {
+  font-size: 1rem;
+}
+
 .table-panel {
   overflow: hidden;
   transition: opacity 0.15s ease;

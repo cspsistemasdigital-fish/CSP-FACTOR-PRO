@@ -8,6 +8,7 @@ import SummaryTile from '../../components/ui/SummaryTile'
 import StatusBadge from '../../components/ui/StatusBadge'
 import Pagination from '../../components/ui/Pagination'
 import ExportXlsxButton from '../../components/ui/ExportXlsxButton'
+import DataVisibility from '../../components/ui/DataVisibility'
 import EmptyState from '../../components/ui/EmptyState'
 import { ErrorBlock, LoadingBlock } from '../../components/ui/Feedback'
 import useDebouncedValue from '../../hooks/useDebouncedValue'
@@ -325,8 +326,9 @@ export default function ClientsList() {
           </EmptyState>
         </div>
       ) : (
-        <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
-          <div className="table-responsive fp-table-wrap d-none d-lg-block">
+        <DataVisibility id="clients-saved-data" label="clientes">
+          <div className={`fp-panel table-panel ${loading ? 'is-refreshing' : ''}`}>
+            <div className="table-responsive fp-table-wrap d-none d-lg-block">
             <table className="table fp-table align-middle">
               <thead>
                 <tr>
@@ -502,8 +504,9 @@ export default function ClientsList() {
             })}
           </div>
 
-          <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
-        </div>
+            <Pagination meta={meta} onChange={(nextPage) => setParam('page', String(nextPage))} />
+          </div>
+        </DataVisibility>
       )}
     </div>
   )
