@@ -233,7 +233,16 @@ async function main() {
 
     await evaluate(cdp, '__setByLabel("Valor do empréstimo", "3000.00")')
     await evaluate(cdp, '__setByLabel("Valor recebido pelo cliente", "2700.00")')
-    await evaluate(cdp, '__setByLabel("Lucro de quem empresta", "300.00")')
+    await evaluate(cdp, '__click(".loan-profit-toggle")')
+    const calculatedProfit = await evaluate(
+      cdp,
+      '({ value: document.querySelector(".loan-profit-field input").value, readOnly: document.querySelector(".loan-profit-field input").readOnly })',
+    )
+    check(
+      'lucro e calculado ao revelar e fica somente leitura no novo emprestimo',
+      calculatedProfit.value.replace(/\D/g, '') === '30000' && calculatedProfit.readOnly,
+      JSON.stringify(calculatedProfit),
+    )
     await evaluate(cdp, `__setByLabel("Observações", "${NOTES}")`)
     await evaluate(cdp, '__setValue(\'.loan-installment-config input[type="number"]\', "3")')
     await waitFor(
@@ -343,7 +352,7 @@ async function main() {
     check('codigo do emprestimo gerado automaticamente', /^EMP-\d+$/.test(loan?.code || ''), loan?.code)
     check('tres parcelas persistidas', (loan?.installments || []).length === 3,
       `${(loan?.installments || []).length} parcelas`)
-    check('relacao consumo-recebido-lucro nao e recalculada',
+    check('lucro salvo corresponde ao valor emprestado menos o recebido',
       Number(loan?.profit_amount) === 300 && Number(loan?.loan_amount) - Number(loan?.received_amount) === 300)
     await goto(cdp, '/emprestimos', { ready: '!!document.querySelector("#loans-saved-data")' })
     const loanListControl = 'button[aria-controls="loans-saved-data"]'

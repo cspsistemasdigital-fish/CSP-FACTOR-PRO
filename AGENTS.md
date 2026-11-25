@@ -4,7 +4,7 @@
 > Ele é a fonte de verdade sobre arquitetura, regras de negócio, convenções, comandos
 > e pendências do FACTOR PRO — Gestão Financeira Inteligente.
 
-Última atualização: **Listas com dados ocultos por padrão**. Clientes, Cheques, Boletos, Empréstimos, Operações e Recebimentos agora exibem os registros somente após acionar o botão de olho; o controle inclui tabela, cartões mobile e paginação, e volta ao estado oculto ao sair da página. Build OK; smoke verificou os controles em listas populadas e no mobile, mas registrou duas falhas preexistentes fora do escopo (título do login e contraste na Agenda); fluxo de empréstimos 36/36.
+Última atualização: **Lucro automático no novo empréstimo**. O formulário calcula o lucro como valor emprestado menos valor recebido, mantendo-o oculto até o usuário revelar; o campo é somente leitura no cadastro. Build OK e fluxo de empréstimos 37/37.
 
 ---
 
@@ -51,9 +51,11 @@ Os únicos valores derivados são **comparações** usadas para alertas:
   (soma de `net_amount` de cheques/boletos com status `EM_ABERTO`/`DEVOLVIDO`
   **mais o saldo das parcelas de empréstimos em aberto**). É derivado, não armazenado.
   Ultrapassar o limite é **aviso**, não bloqueio.
-- **Empréstimos**: valor emprestado, recebido e lucro são informados e gravados
-  exatamente como digitados. Parcelas são uma **sugestão editável** de divisão do
-  principal — nunca há cálculo de juros, taxas ou encargos.
+- **Empréstimos**: valor emprestado e recebido são informados e gravados exatamente
+  como digitados. No formulário de novo empréstimo, o lucro é preenchido pela diferença
+  entre esses dois valores e exibido pelo controle de mostrar/ocultar; na edição, o
+  valor existente permanece editável. Parcelas são uma **sugestão editável** de divisão
+  do principal — nunca há cálculo de juros, taxas ou encargos.
 
 ---
 
@@ -246,7 +248,7 @@ Todas as tabelas de domínio têm `TimestampMixin` (created/updated + `created_b
 | `operations`            | code (`OPR-00001`), client_id, operation_date, description, status (ABERTA/FECHADA), notes — cheques/boletos e empréstimos vinculados; totais derivados por grupo                                                                                                               |
 | `receipts`              | code (`REC-00001`), document*kind (CHEQUE/BOLETO), document_id, client_id, receipt_date, amount, notes, attachment*\* — baixa **manual** e auditada                                                                                              |
 | `document_attachments`  | document*kind (`CHEQUE`/`BOLETO`/`RECEIPT`), document_id, path, name, size, content_type — **várias fotos** por documento, com soft delete; coluna legada `attachment*\*` preservada                                                             |
-| `loans`                 | code (`EMP-00001`), client_id, **operation_id** nullable, loan_date, **loan_amount**, **received_amount**, **profit_amount** (informados), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete**                                                      |
+| `loans`                 | code (`EMP-00001`), client_id, **operation_id** nullable, loan_date, **loan_amount**, **received_amount**, **profit_amount** (lucro calculado no formulário novo; gravado no registro), status (ABERTA/QUITADA/CANCELADA), notes, totais derivados; **soft delete** |
 | `installments`          | loan_id, number, due_date, **amount**, status (`DocumentStatus`), notes — parcelas **editáveis**; `EM_ABERTO`/`DEVOLVIDO` entram na exposição                                                                                                    |
 | `audit_logs`            | user_id/user_email, action, entity, entity_id, description, changes (JSON), ip_address, created_at                                                                                                                                               |
 | `settings`              | key/value (dados da empresa + branding: `app_name`, `brand_logo_path`, `brand_logo_name`; backup: `backup_enabled`, `backup_time`, `backup_retention_days`, `backup_include_uploads`, `backup_last_at`, `backup_last_error`)                     |
@@ -474,9 +476,10 @@ reason: string}`. O motivo é obrigatório ao bloquear e a alteração é audita
   `/reports/filters`, até 20), disponíveis em qualquer dispositivo; o rótulo da área é
   “Filtros salvos na sua conta”. Tabelas usam `.report-table` dentro de `.fp-table-wrap`.
 - **Empréstimos** (`/emprestimos`): formulário com busca automática do cliente
-  (`ClientSelect`), valores informados (emprestado/recebido/lucro), parcelas geradas
-  como **sugestão editável** (quantidade, 1º vencimento e periodicidade), lucro oculto
-  por padrão com controle para mostrar/ocultar, atalho de cadastro rápido do cliente
+  (`ClientSelect`), valores emprestado e recebido informados, lucro do novo empréstimo
+  calculado como emprestado menos recebido (oculto por padrão e somente leitura),
+  parcelas geradas como **sugestão editável** (quantidade, 1º vencimento e periodicidade),
+  atalho de cadastro rápido do cliente
   com retorno preservando o formulário e aviso de limite sem bloqueio. A minuta de
   promissória usa os dados informados e imprime em uma página A4, com título único,
   dados principais na mesma linha, parcelas compactas e espaço de assinatura. A folha
@@ -536,14 +539,15 @@ capture="environment">` para tirar uma foto por vez em celular/tablet e acumula
 | Backend (pytest)          | `cd backend; .\.venv\Scripts\python.exe -m pytest -q` | **161 passed**                                |
 | Smoke UI + acessibilidade | `node scripts/browser_smoke.mjs`                      | **137/139** (2 falhas preexistentes fora do escopo) |
 | Fluxos funcionais UI      | `node scripts/browser_flows.mjs`                      | **37/37**                                     |
-| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **36/36**                                     |
+| Fluxo de empréstimos UI   | `node scripts/browser_loans.mjs`                      | **37/37**                                     |
 | Verificação completa      | `node scripts/verify_all.mjs`                         | pytest → build → smoke → fluxos → empréstimos |
 
 O smoke cobre: todas as telas (claro/escuro/mobile), overflow horizontal, texto cortado,
 alvos de toque, contraste AA, tema persistente, 404, logout/login, sem erros de console,
 além das telas de operações, recebimentos, **Relatório Geral (6 abas, inclusive
 Empréstimos, e resumo derivado)**, **empréstimos (lista/formulário/detalhe/relatório),
-lucro oculto, alternância de tema, acesso ao cadastro rápido e minuta de promissória**,
+a diferença automática do lucro oculto até revelação, alternância de tema, acesso ao
+cadastro rápido e minuta de promissória**,
 a alternância de dados salvos nas listagens, cartões de clientes revelados no celular,
 a checagem de seta única dos selects, a homepage pública e a Agenda (mês/semana/dia).
 Os fluxos cobrem: login + troca obrigatória, cadastro/edição de cliente, CPF/CNPJ

@@ -107,6 +107,12 @@ function toForm(item) {
   }
 }
 
+function calculateProfit(loanAmount, receivedAmount) {
+  const loanCents = Math.round((Number(loanAmount) || 0) * 100)
+  const receivedCents = Math.round((Number(receivedAmount) || 0) * 100)
+  return ((loanCents - receivedCents) / 100).toFixed(2)
+}
+
 export default function EmprestimoForm() {
   const { id } = useParams()
   const editing = Boolean(id)
@@ -197,9 +203,26 @@ export default function EmprestimoForm() {
   }, [editing, scheduleTouched, form.loan_amount, config.quantity, config.first_due_date, config.periodicity])
 
   const setField = (field) => (value) => {
-    setForm((current) => ({ ...current, [field]: value }))
+    setForm((current) => {
+      const next = { ...current, [field]: value }
+      if (!editing && (field === 'loan_amount' || field === 'received_amount')) {
+        next.profit_amount = calculateProfit(next.loan_amount, next.received_amount)
+      }
+      return next
+    })
     setErrors((current) => ({ ...current, [field]: undefined }))
     setMessage('')
+  }
+
+  const toggleProfit = () => {
+    const shouldShow = !showProfit
+    if (shouldShow && !editing) {
+      setForm((current) => ({
+        ...current,
+        profit_amount: calculateProfit(current.loan_amount, current.received_amount),
+      }))
+    }
+    setShowProfit(shouldShow)
   }
 
   const handleChange = (field) => (event) => setField(field)(event.target.value)
@@ -521,15 +544,18 @@ export default function EmprestimoForm() {
                   value={form.profit_amount}
                   onChange={setField('profit_amount')}
                   error={errors.profit_amount}
-                  hint="Informado manualmente. O sistema nunca calcula juros ou encargos."
+                  hint={editing
+                    ? 'Valor informado manualmente.'
+                    : 'Calculado automaticamente: valor emprestado menos valor recebido pelo cliente.'}
+                  readOnly={!editing}
                   type={showProfit ? 'text' : 'password'}
                   className="loan-profit-field"
                 />
                 <button
                   type="button"
                   className="loan-profit-toggle"
-                  onClick={() => setShowProfit((current) => !current)}
-                  aria-label={`${showProfit ? 'Ocultar' : 'Mostrar'} lucro informado`}
+                  onClick={toggleProfit}
+                  aria-label={`${showProfit ? 'Ocultar' : 'Mostrar'} lucro ${editing ? 'informado' : 'calculado'}`}
                   aria-pressed={showProfit}
                   title={`${showProfit ? 'Ocultar' : 'Mostrar'} lucro`}
                 >
